@@ -14,6 +14,11 @@ module Crafty
         return nil
       end
 
+      # @return [Boolean] `true` to enable the measurement bar and `false` otherwise.
+      def enable_vcb?
+        false
+      end
+
       # @param tool [Tool]
       # @param old_mode [nil, Mode]
       # @param view [Sketchup::View]
@@ -44,6 +49,14 @@ module Crafty
       # @param view [Sketchup::View]
       # @return [Mode] the mode for the next operation
       def on_return(tool, view)
+        self
+      end
+
+      # @param tool [Tool]
+      # @param text [String]
+      # @param view [Sketchup::View]
+      # @param [Mode] the mode for the next operation
+      def on_value(tool, text, view)
         self
       end
 
@@ -135,8 +148,17 @@ module Crafty
         self.set_status
       end
 
+      def onUserText(text, view)
+        self.apply_mode (@mode.on_value self, text, view), view
+        self.set_status
+      end
+
       def getExtents
         return @bounds
+      end
+
+      def enableVCB?
+        return @mode.enable_vcb?
       end
 
       private
@@ -145,8 +167,8 @@ module Crafty
       # @param view [Sketchup::View]
       def apply_mode(mode, view = Sketchup.active_model.active_view)
         if mode != @mode
-          @mode.deactivate_mode self, mode
-          mode.activate_mode self, @mode
+          @mode.deactivate_mode self, mode, view unless @mode.nil?
+          mode.activate_mode self, @mode, view
           @mode = mode
         end
       end

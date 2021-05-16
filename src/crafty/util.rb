@@ -1,4 +1,5 @@
 require 'sketchup.rb'
+require 'crafty/consts.rb'
 
 module Crafty
   module Util
@@ -19,7 +20,7 @@ module Crafty
     # @param suppress [Boolean] set to true to cause the undo operation to be skipped
     # @param block the wrapped code to execute
     # @return the return value of the block
-    def wrap_with_undo(operation_name, suppress = false, &block)
+    def self.wrap_with_undo(operation_name, suppress = false, &block)
       return block.call if suppress
       begin
         Sketchup.active_model.start_operation operation_name, true
@@ -37,8 +38,8 @@ module Crafty
     # @param loop [Sketchup::Loop] the loop whose points are to be returned
     # @param offset [Geom::Vector3d] an offset to apply to each point
     # @return [Array<Geom::Point3d>] the points from the loop
-    def self.loop_to_closed_pts(loop, offset = Geom::Vector3d.new(0, 0, 0))
-      return (loop.vertices.map { |v| v.position }) + [loop.vertices[0].position + offset]
+    def self.loop_to_closed_pts(loop, offset = ZERO_VECTOR)
+      return (loop.vertices.map { |v| v.position + offset }) + [loop.vertices[0].position + offset]
     end
 
     # Copies the edges and faces for the given face element to the given group
@@ -46,7 +47,7 @@ module Crafty
     # @param entities [Sketchup::Entities] the entities list to clone the face into
     # @param offset [Geom::Vector3d] an optional offset for all the face's vertices
     # @return [Sketchup::Face] the cloned face within `entities`
-    def self.clone_face(face, entities, offset = Geom::Vector3d.new(0, 0, 0))
+    def self.clone_face(face, entities, offset = ZERO_VECTOR)
       outer_face = entities.add_face (face.outer_loop.vertices.map { |v| v.position.offset(offset) })
       inner_faces = face.loops[1..face.loops.length].map { |inner_loop|
         entities.add_face (inner_loop.vertices.map { |v| v.position.offset(offset) } )

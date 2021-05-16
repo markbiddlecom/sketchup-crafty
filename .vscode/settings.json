@@ -1,3 +1,7 @@
 {
   "solargraph.diagnostics": true,
+  "cSpell.words": [
+    "Sketchup",
+    "rubocop"
+  ],
 }

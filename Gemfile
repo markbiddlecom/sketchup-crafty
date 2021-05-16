@@ -8,3 +8,5 @@ group :development do
   gem 'skippy', '~> 0.4.1.a' # Aid with common SketchUp extension tasks.
   gem 'solargraph' # For code-insight and RuboCop integration with VSCode.
 end
+
+gem "sorted_set", "~> 1.0"

@@ -2,9 +2,10 @@
 # Licensed under the MIT license
 
 require 'sketchup.rb'
+require 'crafty/face_to_panel_tool.rb'
 
-module Examples
-  module HelloCube
+module Crafty
+  module Plugin
 
     def self.create_cube
       model = Sketchup.active_model
@@ -24,11 +25,12 @@ module Examples
 
     unless file_loaded?(__FILE__)
       menu = UI.menu('Plugins')
-      menu.add_item('Create Cube Example') {
-        self.create_cube
+      submenu = menu.add_submenu('Crafty')
+      submenu.add_item('Face To Panel') {
+        Crafty::FaceToPanel.start_tool
       }
       file_loaded(__FILE__)
     end
 
-  end # module HelloCube
-end # module Examples
+  end # module Plugin
+end # module Crafty

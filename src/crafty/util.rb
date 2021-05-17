@@ -56,5 +56,58 @@ module Crafty
       return outer_face
     end
 
+    # @param input [nil, String, Array<String>, Object, Array<Object>]
+    # @return [Array<String>]
+    def self.to_str_array(input = nil)
+      if input.nil?
+        return []
+      elsif input.is_a? String
+        return [input]
+      elsif input.is_a? Array
+        return input.map do { |e| e.to_s }
+      else
+        return [input.to_s]
+      end
+    end
+
+    class Cycle
+      # @param modes [Array<String>] the modes the cycle will iterate through
+      def initialize(*modes)
+        @modes = modes
+        @cur_mode = 0
+      end
+
+      # @return [String] the current mode of this cycle.
+      def cur_mode
+        return @modes[@cur_mode % @modes.length]
+      end
+
+      # Advances this cycle by one
+      # @return [Cycle] this cycle instance, for method chaining or comparison
+      def advance
+        return self += 1
+      end
+
+      # @param amount [Numeric] the amount by which to increment the cycle
+      # @return [Cycle] this cycle instance, for method chaining or comparison
+      def +=(amount)
+        @cur_mode++
+        return self
+      end
+
+      # @param string_or_cycle [String, Cycle] the value to compare
+      # @return [Boolean] `true` if both values currently represent cycles with the same current mode, and `false`
+      #   otherwise.
+      def ===(string_or_cycle)
+        if string_or_cycle.is_a? String
+          return self.cur_mode === string_or_cycle
+        elsif string_or_cycle.is_a? Cycle
+          return self.cur_mode === string_or_cycle.cur_mode
+        else
+          return false
+        end
+      end
+    end
+
   end # module Util
 end # module Crafty

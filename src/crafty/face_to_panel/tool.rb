@@ -35,6 +35,7 @@ module Crafty
         group = Sketchup.active_model.active_entities.add_group
         group.name = 'Panel'
         face = Crafty::Util.clone_face face, group.entities, offset
+        Crafty::Attributes.tag_primary_face face
         face.pushpull depth
         return group
       end

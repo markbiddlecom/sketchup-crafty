@@ -48,7 +48,7 @@ module Crafty
       @help = help
       @help_message = Chord.create_help_message help, modifiers, keys, button
       @modifiers = modifiers.nil? ? 0 : modifiers
-      @antimodifiers = Chord.calculate_antimodifiers modifiers
+      @antimodifiers = ~@modifiers
       @button = button
       @keys = Chord.init_keys keys
       @block = block
@@ -85,6 +85,9 @@ module Crafty
 
     # @return [ChordState] the state the chord moves to when its modifiers are satisfied
     def satisfied_state; @satisfied_state; end
+
+    # @return [ChordState] the current state of this chord
+    def state; @state; end
 
     # @return [Boolean] `true` if this chord can be satisfied given the current sequence of tracked inputs, and
     #   `false` otherwise
@@ -186,6 +189,7 @@ module Crafty
     # @options chords [Proc] :on_trigger the code to execute when the comand is triggered
     def initialize(*chords)
       @chords = Chordset.chords_from_hashes self, chords
+      @current_modifiers = 0
     end
 
     # @return [Integer] a bitwise combination of the modifiers that are currently depressed
@@ -199,7 +203,7 @@ module Crafty
     end
 
     def on_enacted
-      @chords.each { |chord| chord.state = chord.state.after_enact chord, @cur_modifiers }
+      @chords.each { |chord| chord.state = chord.state.after_enact chord, @current_modifiers }
     end
 
     # @param keycode [Numeric] the ID of the key that was depressed
@@ -237,6 +241,29 @@ module Crafty
       end
     end
 
+    private
+
+    # @param modifier [Integer] the modifier that was depressed
+    # @return [Boolean] whether any state changes occurred
+    def modifier_down(modifier)
+      @current_modifiers |= modifier
+      self.trigger_modifer_change
+    end
+
+    # @param modifier [Integer] the modifier that was released
+    # @return [Boolean] whether any state changes occurred
+    def modifier_up(modifier)
+      @current_modifiers = @current_modifiers & (~modifier)
+      self.trigger_modifer_change
+    end
+
+    # @return [Boolean] whether any state changes occurred
+    def trigger_modifer_change
+      @chords.each do |chord|
+        new_state = chord.state.accept_modifier_change chord, @current_modifiers
+      end
+    end
+
     # @param chordset [Chordset] the chordset to associate the chords with
     # @param chords [Array<Hash>] the initializtion options for the chords
     # @return [Array<Chord>] the initialized chords
@@ -252,23 +279,6 @@ module Crafty
           &(chord_hash[:on_trigger])
         )
       end
-    end
-
-    private
-
-    # @param modifier [Integer] the modifier that was depressed
-    # @return [Boolean] whether any state changes ocurred
-    def modifier_down(modifier)
-      @current_modifiers |= modifier
-    end
-
-    # @param modifier [Integer] the modifier that was released
-    # @return [Boolean] whether any state changes ocurred
-    def modifier_up(modifier)
-      remaining = Chord::MODIFIERS.reduce(0) do |bitmask, m|
-        bitmask |= m unless m === modifier
-      end
-      @current_modifiers &= remaining
     end
   end # class Chordset
 

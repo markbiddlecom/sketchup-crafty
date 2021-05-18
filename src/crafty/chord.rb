@@ -32,28 +32,39 @@ module Crafty
 
     # Creates a new enabled chord in the given set
     # @param chordset [Chordset] the set to associate the chord with
+    # @param cmd [Symbol] the name of the chord's command
     # @param help [String] the help text to display when this chord is reachable
-    # @param modifiers [0, nil, Numeric] a bitwise combination of the modifie= "r"s needed to activate this chord
+    # @param modifiers [0, nil, Numeric] a bitwise combination of the modifier keys needed to activate this chord
     #   @see #{Crafty::Util::Chord::CTRL_CMD}
     #   @see #{Crafty::Util::Chord::ALT_OPTION}
     #   @see #{Crafty::Util::Chord::SHIFT}
+    # @param button [Integer] the mouse button that must be clicked for the command to be activated
     # @param keys [nil, Array<String, Array<String>>] the keys that need to be pressed together and/or in sequence for
     #   the chord to be activated
-    def initialize(chordset, help, modifiers, button, *keys, &block)
+    # @param block [Proc] the code to execute when the command is triggered
+    def initialize(chordset, cmd, help, modifiers, button, *keys, &block)
       @chordset = chordset
+      @cmd = cmd
       @help = help
       @help_message = Chord.create_help_message help, modifiers, keys, button
       @modifiers = modifiers.nil? ? 0 : modifiers
+      @antimodifiers = Chord.calculate_antimodifiers modifiers
       @button = button
       @keys = Chord.init_keys keys
       @block = block
+      @satisfied_state = keys.length ? AwaitingFirstKeyState.new : AwaitingButtonState.new
       self.enable!
-
-      # TODO: ensure valid input => modifiers + (button | key+)
+      # TODO: ensure valid input => modifiers? (button | key+)
     end
 
+    # @return [Symbol] the chord's command name
+    def cmd; @cmd; end
+
     # @return [Integer] the set of modifiers expected by this chord
-    def modifiers; modifiers; end
+    def modifiers; @modifiers; end
+
+    # @return [Integer] the set of modifiers that disqualify this chord
+    def antimodifiers; @antimodifers; end
 
     # @return [Array<Array<String>>] the keys that need to be pressed in sequence and then in unison for this chord to
     #   activate
@@ -68,6 +79,30 @@ module Crafty
 
     # @return [String] a string describing this chord's input and help message
     def help_message; @help_message; end
+
+    # @return [Chordset] the chordset this chord is associated with
+    def chordset; @chordset; end
+
+    # @return [ChordState] the state the chord moves to when its modifiers are satisfied
+    def satisfied_state; @satisfied_state; end
+
+    # @return [Boolean] `true` if this chord can be satisfied given the current sequence of tracked inputs, and
+    #   `false` otherwise
+    def reachable?
+      @state.reachable?
+    end
+
+    # @param modifiers [Integer] the mopdifiers to compare this chord's requirements with
+    # @return [ChordState] the chord state that would apply for the given set of depressed modifiers
+    def state_from_modifiers(modifiers)
+      if modifiers === @modifiers
+        return @satisfied_state
+      elsif modifiers & @antimodifiers != 0
+        return UnreachableChordState.new
+      else
+        return AwaitingModifiersState.new
+      end
+    end
 
     # Changes this chord's state to enabled, if it isn't already. If the state is changed, the chord will be
     # #{#reset}.
@@ -87,26 +122,28 @@ module Crafty
       end
     end
 
-    # Reset's the chord's state to idle (or to disabled), clearing out any partially accepted inputs
-    def reset
+    # Resets the chord's state to idle (or to disabled), clearing out any partially accepted inputs
+    # @param cur_modifiers [Integer] the currently depressed modifier keys, if known
+    def reset(cur_modifiers = 0)
       if self.enabled?
-        self.state = IdleChordState.new self
+        self.state = self.state_from_modifiers cur_modifiers
       else
         self.state = DisabledChordState.new
       end
     end
-
-    private
 
     # @param newState [ChordState]
     def state=(new_state)
       if new_state.enact?
         @block.call
         self.reset
+        @chordset.on_enacted
       else
         @state = new_state
       end
     end
+
+    private
 
     # @param keys [nil, Array<String, Array<String>>]
     # @return [Array<Array<String>>]
@@ -140,9 +177,15 @@ module Crafty
   end # class Chord
 
   class Chordset
-    # @param chords [Array<Crafty::Chord>] the chords to track
-    def initializes(*chords)
-      @chords = chords
+    # @param chords [Array<Hash>] initialization parameters for the chords to track
+    # @options chords [Symbol] :cmd the unique symbol for this command
+    # @options chords [String] :help the help message to display to users when this chord is available
+    # @options chords [Integer] :modifiers the set of modifier keys that must be depressed to enact this chord
+    # @options chords [Integer, String, Array<String, Array<String>>] :trigger either `Chord::LBUTTON`,
+    #   `Chord::RBUTTON`, or the key or key sequence that must be pressed to trigger the command
+    # @options chords [Proc] :on_trigger the code to execute when the comand is triggered
+    def initialize(*chords)
+      @chords = Chordset.chords_from_hashes self, chords
     end
 
     # @return [Integer] a bitwise combination of the modifiers that are currently depressed
@@ -151,7 +194,12 @@ module Crafty
     end
 
     # @return [String] a string including all of the chords that are currently reachable
-    def get_status
+    def status
+      return ((@chords.find_all { |c| c.reachable? }).map { |c| help_message}).join "; "
+    end
+
+    def on_enacted
+      @chords.each { |chord| chord.state = chord.state.after_enact chord, @cur_modifiers }
     end
 
     # @param keycode [Numeric] the ID of the key that was depressed
@@ -175,13 +223,35 @@ module Crafty
         self.modifier_up Chord::ALT_OPTION
       elsif keycode === VK_SHIFT
         self.modifier_up Chord::SHIFT
+      else
+        key = Util.keycode_to_key keycode
+        changed = false
+        @chords.each do |chord|
+          new_state = chord.state.accept_keypress key, chord, @current_modifiers
+          if new_state != chord.state
+            changed = true
+            chord.state = new_state
+          end
+        end
+        changed
       end
     end
 
-    def on_mouse_down
-    end
-
-    def on_mouse_up
+    # @param chordset [Chordset] the chordset to associate the chords with
+    # @param chords [Array<Hash>] the initializtion options for the chords
+    # @return [Array<Chord>] the initialized chords
+    def self.chords_from_hashes(chordset, chords)
+      chords.map do |chord_hash|
+        trigger = chord_hash[:trigger]
+        Chord.new(
+          chordset,
+          chord_hash[:help],
+          chord_hash[:modifiers],
+          (trigger.is_a? Numeric) ? trigger : 0,
+          *((trigger.is_a? Numeric) ? [] : trigger),
+          &(chord_hash[:on_trigger])
+        )
+      end
     end
 
     private
@@ -214,32 +284,33 @@ module Crafty
       false
     end
 
+    # @param chord [Chord] the chord to which this state applies
+    # @param cur_modifiers [Integer] the current state of modifier keys
     # @return [ChordState] the state to apply to the chord after the handler block has been called
-    def after_enact
+    def after_enact(chord, cur_modifiers)
       self
     end
 
-    # @param modifier [Integer] the modifie= "r" that was depressed
-    # @return [ChordState] the new state after processing the modifier
-    def accept_modifier_down(modifier)
-      self
-    end
-
-    # @param modifier [Integer] the modifie= "r" that was released
-    # @return [ChordState] the new state after processing the modifier
-    def accept_modifier_up(modifier)
+    # @param chord [Chord] the chord to which this state applies
+    # @param cur_modifiers [Integer] the current state of modifier keys
+    # @return [ChordState] the new state after processing the modifier change
+    def accept_modifier_change(chord, cur_modifiers)
       self
     end
 
     # @param button [Integer] the button that was clicked
+    # @param chord [Chord] the chord to which this state applies
+    # @param cur_modifiers [Integer] the current state of modifier keys
     # @return [ChordState] the new state after processing the click
-    def accept_click(button)
+    def accept_click(button, chord, cur_modifiers)
       self
     end
 
-    # @para= "m" [String] th= "e" that was pressed
-    # @return [ChordState] the new state after processing th= "e"press
-    def accept_keypress(key)
+    # @param [String] the key that was pressed
+    # @param chord [Chord] the chord to which this state applies
+    # @param cur_modifiers [Integer] the current state of modifier keys
+    # @return [ChordState] the new state after processing the key press
+    def accept_keypress(key, chord, cur_modifiers)
       self
     end
   end # class ChordState
@@ -248,11 +319,92 @@ module Crafty
   # set to something else.
   class DisabledChordState < ChordState; end
 
-  # A chord that is enabled but that hasn't yet received any of its inputs
-  class IdleChordState < ChordState
+  class AwaitingModifiersState < ChordState
     def reachable?; true; end
+
+    def accept_modifier_change(chord, cur_modifiers)
+      return chord.state_from_modifiers cur_modifiers
+    end
   end # class IdleChordState
 
+  class AwaitingFirstKeyState < ChordState
+    def reachable?; true; end
+
+    def accept_modifier_change(chord, cur_modifiers)
+      return chord.state_from_modifiers cur_modifiers
+    end
+
+    def accept_keypress(key, chord, cur_modifiers)
+      if key === chord.keys[0][0]
+        return @sequence_index >= chord.keys.length ?
+          TriggeredChordState.new :
+          AwaitingNextKeyState.new(@sequence_index + 1)
+      else
+        return self
+      end
+    end
+  end # class AwaitingFirstKeyState
+
+  class AwaitingNextKeyState < ChordState
+    def initialize(sequence_index)
+      @sequence_index = sequence_index
+    end
+
+    def accept_click(button, chord, cur_modifiers)
+      return chord.state_from_modifiers cur_modifiers
+    end
+
+    def accept_modifier_change(chord, cur_modifiers)
+      if cur_modifiers != chord.modifiers
+        return chord.state_from_modifiers cur_modifiers
+      else
+        return self
+      end
+    end
+
+    def accept_keypress(key, chord, cur_modifiers)
+      # TODO: support chords; for now assume each sequence is a singleton
+      if key === chord.keys[@sequence_index][0]
+        return @sequence_index >= chord.keys.length ?
+          TriggeredChordState.new :
+          AwaitingNextKeyState.new(@sequence_index + 1)
+      else
+        return chord.state_from_modifiers cur_modifiers
+      end
+    end
+  end # class AwaitingNextKeyState
+
+  class AwaitingButtonState < ChordState
+    def reachable?; true; end
+
+    def accept_modifier_change(chord, cur_modifiers)
+      return chord.state_from_modifiers cur_modifiers
+    end
+
+    def accept_click(button, chord, cur_modifiers)
+      if button === chord.button
+        return TriggeredChordState.new
+      else
+        return self
+      end
+    end
+  end # class AwaitingButtonState
+
+  class TriggeredChordState < ChordState
+    def enact?; true; end
+  end
+  class UnreachableChordState < ChordState
+    # This state can never be reached. That's the whole point ;)
+    def reachable?; false; end
+
+    def after_enact(chord, modifiers)
+      return chord.state_from_modifiers modifiers
+    end
+
+    def accept_modifier_change(chord, cur_modifiers)
+      return chord.state_from_modifiers cur_modifiers
+    end
+  end
   module Util
     # Converts the given keycode to the string representation for the current platform
     # @param keycode [Integer] the OS keycode provided
@@ -261,7 +413,7 @@ module Crafty
     def self.keycode_to_key(keycode)
       if @@keymap.nil?
         @@keymap = Hash.new
-        # Commo= "n" codes
+        # Common key codes
         @@keymap[VK_DELETE] = Chord::DEL
         @@keymap[VK_INSERT] = Chord::INS
         @@keymap[VK_SPACE] = Chord::SPACE

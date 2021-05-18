@@ -64,7 +64,7 @@ module Crafty
       elsif input.is_a? String
         return [input]
       elsif input.is_a? Array
-        return input.map do { |e| e.to_s }
+        return input.map { |e| e.to_s }
       else
         return [input.to_s]
       end
@@ -82,16 +82,11 @@ module Crafty
         return @modes[@cur_mode % @modes.length]
       end
 
-      # Advances this cycle by one
+      # Advances this cycle by the given amount
+      # @param amount [Integer] the number of changes to apply to the cycle
       # @return [Cycle] this cycle instance, for method chaining or comparison
-      def advance
-        return self += 1
-      end
-
-      # @param amount [Numeric] the amount by which to increment the cycle
-      # @return [Cycle] this cycle instance, for method chaining or comparison
-      def +=(amount)
-        @cur_mode++
+      def advance(amount = 1)
+        @cur_mode += amount
         return self
       end
 

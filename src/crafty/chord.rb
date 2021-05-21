@@ -52,7 +52,6 @@ module Crafty
       @button = button
       @keys = Chord.init_keys keys
       @block = block
-      @satisfied_state = keys.length ? AwaitingFirstKeyState.new : AwaitingButtonState.new
       self.enable!
       # TODO: ensure valid input => modifiers? (button | key+)
     end
@@ -70,6 +69,16 @@ module Crafty
     #   activate
     def keys; @keys; end
 
+    # @param cur_modifiers [Integer] the currently activiated modifer keys
+    # @param downkeys [Enumerable<String>] the currently depressed (non-modifier) keys
+    # @param sequence_index [Integer] the index of the subchord within `keys` to compare `downkeys` with
+    # @return [Boolean] `true` if this chord's configuration matches the given parameters.
+    def matches?(cur_modifiers, downkeys, sequence_index)
+      return cur_modifiers === @modifiers and
+        sequence_index < @keys.length and
+        (downkeys.to_set | @keys[sequence_index]).length === @keys[sequence_index].length
+    end
+
     # @return [nil, Integer] the mouse button that must be clicked to enact this chord
     def button; @button; end
 
@@ -80,73 +89,18 @@ module Crafty
     # @return [String] a string describing this chord's input and help message
     def help_message; @help_message; end
 
-    # @return [Chordset] the chordset this chord is associated with
-    def chordset; @chordset; end
+    # @return [Boolean] whether this command is allowed to be enacted
+    def enabled; @enabled; end
 
-    # @return [ChordState] the state the chord moves to when its modifiers are satisfied
-    def satisfied_state; @satisfied_state; end
-
-    # @return [ChordState] the current state of this chord
-    def state; @state; end
-
-    # @return [Boolean] `true` if this chord can be satisfied given the current sequence of tracked inputs, and
-    #   `false` otherwise
-    def reachable?
-      @state.reachable?
+    # @param new_enabled [Boolean] the new enabled state
+    def enabled=(new_enabled)
+      @enabled = new_enabled
     end
 
-    # @param modifiers [Integer] the mopdifiers to compare this chord's requirements with
-    # @return [ChordState] the chord state that would apply for the given set of depressed modifiers
-    def state_from_modifiers(modifiers)
-      if modifiers === @modifiers
-        return @satisfied_state
-      elsif modifiers & @antimodifiers != 0
-        return UnreachableChordState.new
-      else
-        return AwaitingModifiersState.new
-      end
+    # Invokes this chord's block
+    def enact
+      @block.call self
     end
-
-    # Changes this chord's state to enabled, if it isn't already. If the state is changed, the chord will be
-    # #{#reset}.
-    def enable!
-      if @enabled.nil? or @enabled === false
-        @enabled = true
-        self.reset
-      end
-    end
-
-    # Changes this chord's state to disabled, if it isn't already. If the state is changed, the chord will be
-    # #{#reset}.
-    def disable!
-      if @enabled === true
-        @enabled = false
-        self.reset
-      end
-    end
-
-    # Resets the chord's state to idle (or to disabled), clearing out any partially accepted inputs
-    # @param cur_modifiers [Integer] the currently depressed modifier keys, if known
-    def reset(cur_modifiers = 0)
-      if self.enabled?
-        self.state = self.state_from_modifiers cur_modifiers
-      else
-        self.state = DisabledChordState.new
-      end
-    end
-
-    # @param newState [ChordState]
-    def state=(new_state)
-      if new_state.enact?
-        @block.call
-        self.reset
-        @chordset.on_enacted
-      else
-        @state = new_state
-      end
-    end
-
-    private
 
     # @param keys [nil, Array<String, Array<String>>]
     # @return [Array<Array<String>>]
@@ -175,7 +129,15 @@ module Crafty
         input = (keys.map { |chord| chord.join " + " }).join ", "
       end
 
-      return "[#{needed_mods}#{input}] #{help}";
+      return "[#{needed_mods}#{input}] #{help}"
+    end
+
+    # An `each` implementation for an enumerable of chords. This is just here to forward on type info to yard.
+    # @param chords [Enumerable<Chord>]
+    # @yield [chord] yields for each chord in the function
+    # @yieldparam chord [Chord] an individual element from `chords`
+    def self.iterate_chords(chords, &block)
+      chords.each &block
     end
   end # class Chord
 
@@ -190,20 +152,18 @@ module Crafty
     def initialize(*chords)
       @chords = Chordset.chords_from_hashes self, chords
       @current_modifiers = 0
+      @state = ChordsetState::Idle.new
     end
 
     # @return [Integer] a bitwise combination of the modifiers that are currently depressed
-    def current_modifiers
-      return @current_modifiers
-    end
+    def current_modifiers; return @current_modifiers; end
+
+    # @return [Array<Chord>] the chords associated with this chordset
+    def chords; @chords; end
 
     # @return [String] a string including all of the chords that are currently reachable
     def status
       return ((@chords.find_all { |c| c.reachable? }).map { |c| help_message}).join "; "
-    end
-
-    def on_enacted
-      @chords.each { |chord| chord.state = chord.state.after_enact chord, @current_modifiers }
     end
 
     # @param keycode [Numeric] the ID of the key that was depressed
@@ -282,139 +242,189 @@ module Crafty
     end
   end # class Chordset
 
-  class ChordState
-    # @return [Boolean] `true` if further inputs can result in triggering the chord
-    def reachable?
-      false
+  class ChordsetState
+    # @param chordset [Chordset] the chordset whose reachable chords should be returned
+    # @return [Array<Chord>] the set of chords that are currently reachable with further input
+    def reachable_chords(chordset)
+      chordset.chords
     end
 
-    # @return [Boolean] `true` if all of the chord's inputs have been provided and the chord's handler should be
-    #   invoked.
-    def enact?
-      false
-    end
-
-    # @param chord [Chord] the chord to which this state applies
     # @param cur_modifiers [Integer] the current state of modifier keys
-    # @return [ChordState] the state to apply to the chord after the handler block has been called
-    def after_enact(chord, cur_modifiers)
-      self
-    end
-
-    # @param chord [Chord] the chord to which this state applies
-    # @param cur_modifiers [Integer] the current state of modifier keys
-    # @return [ChordState] the new state after processing the modifier change
-    def accept_modifier_change(chord, cur_modifiers)
+    # @param chordset [Chordset] the chordset processing the event
+    # @return [ChordsetState] the new state after processing the modifier change
+    def accept_modifier_change(cur_modifiers, chordset)
       self
     end
 
     # @param button [Integer] the button that was clicked
-    # @param chord [Chord] the chord to which this state applies
     # @param cur_modifiers [Integer] the current state of modifier keys
-    # @return [ChordState] the new state after processing the click
-    def accept_click(button, chord, cur_modifiers)
+    # @param chordset [Chordset] the chordset processing the event
+    # @return [ChordsetState] the new state after processing the click
+    def accept_click(button, cur_modifiers, chordset)
       self
     end
 
-    # @param [String] the key that was pressed
-    # @param chord [Chord] the chord to which this state applies
+    # @param key [String] the key that was depressed
     # @param cur_modifiers [Integer] the current state of modifier keys
-    # @return [ChordState] the new state after processing the key press
-    def accept_keypress(key, chord, cur_modifiers)
+    # @param chordset [Chordset] the chordset processing the event
+    # @return [ChordsetState] the new state after processing the key press
+    def accept_keydown(key, cur_modifiers, chordset)
       self
     end
-  end # class ChordState
 
-  # A chord in the disabled state won't transition away from itself. The current state will have to be explicitly
-  # set to something else.
-  class DisabledChordState < ChordState; end
-
-  class AwaitingModifiersState < ChordState
-    def reachable?; true; end
-
-    def accept_modifier_change(chord, cur_modifiers)
-      return chord.state_from_modifiers cur_modifiers
-    end
-  end # class IdleChordState
-
-  class AwaitingFirstKeyState < ChordState
-    def reachable?; true; end
-
-    def accept_modifier_change(chord, cur_modifiers)
-      return chord.state_from_modifiers cur_modifiers
+    # @param key [String] the key that was released
+    # @param cur_modifiers [Integer] the current state of modifier keys
+    # @param chordset [Chordset] the chordset processing the event
+    # @return [ChordsetState] the new state after processing the released key
+    def accept_keyup(key, cur_modifiers, chordset)
+      self
     end
 
-    def accept_keypress(key, chord, cur_modifiers)
-      if key === chord.keys[0][0]
-        return @sequence_index >= chord.keys.length ?
-          TriggeredChordState.new :
-          AwaitingNextKeyState.new(@sequence_index + 1)
+    # @param available_chords [Array<Chord>] the chords that are reachable before filtering
+    # @param cur_modifiers [Integer] the current state of the modifier keys
+    # @param downkeys [Array<String>] the currently depressed keys (other than the modifier keys)
+    # @param sequence_index [Integer] the current sequence index a multi-step chord
+    # @return [ChordsetState] the activated state given the current set of reachable chords
+    def self.key_state_from_downkeys(available_chords, cur_modifiers, downkeys, sequence_index)
+      reachable_chords = available_chords.find_all do |chord|
+        if chord.enabled? and chord.modifiers === cur_modifiers and chord.button === 0
+          # This chord is still reachable if it has a key sequence with the given index and if the current set of
+          # downkeys doesn't contain any keys not expected by the chord
+          if chord.keys.length > sequence_index
+            sequence_keys = chord.keys[sequence_index].to_set
+            return downkeys.all? { |key| sequence_keys.include? key }
+          end
+        end
+        false
+      end
+      if reachable_chords.length
+        return KeychordDown.new downkeys, reachable_chords, sequence_index
       else
+        return DeadEnd.new downkeys
+      end
+    end
+
+    class Idle < ChordsetState
+      def accept_click(button, cur_modifiers, chordset)
+        chordset.chords.each do |chord|
+          chord.enact if chord.enabled? and chord.modifiers === cur_modifiers && chord.button === button
+        end
+        self
+      end
+
+      def accept_keydown(key, cur_modifiers, chordset)
+        return ChordsetState.key_state_from_downkeys chordset.chords, cur_modifiers, [key], 0
+      end
+    end # class Idle
+
+    class KeychordDown < ChordsetState
+      # @param downkeys [Array<String>] the currently depressed keys
+      # @param reachable_chords [Array<Chord>] the set of chords reachable prior to this state
+      # @param sequence_index [Integer] the current sequence index
+      def initialize(downkeys, reachable_chords, sequence_index)
+        @downkeys = downkeys.to_set
+        @reachable_chords = reachable_chords
+        @sequence_index = sequence_index
+      end
+
+      def reachable_chords(chordset); @reachable_chords; end
+
+      def accept_keydown(key, cur_modifiers, chordset)
+        return ChordsetState.key_state_from_downkeys @reachable_chords, cur_modifiers, @downkeys + [key], @sequence_index
+      end
+
+      def accept_click(button, cur_modifiers, chordset)
+        return DeadEnd.new @downkeys
+      end
+
+      def accept_keyup(key, cur_modifiers, chordset)
+        if @downkeys.include? key
+          @downkeys.delete key
+          return KeychordUp.new @downkeys, @reachable_chords, @sequence_index
+        else
+          return DeadEnd.new @downkeys
+        end
+      end
+    end # class KeychordDown
+
+    class KeychordUp < ChordsetState
+      # @param downkeys [Enumerable<String>] the currently depressed keys
+      # @param reachable_chords [Array<Chord>] the set of chords reachable prior to this state
+      # @param sequence_index [Integer] the current sequence index
+      def initialize(downkeys, reachable_chords, sequence_index)
+        @initial_downkeys = downkeys
+        @downkeys = downkeys.to_set
+        @sequence_index = sequence_index
+      end
+
+      def reachable_chords(chordset); @reachable_chords; end
+
+      def accept_keyup(key, cur_modifiers, chordset)
+        if @downkeys.include? key
+          @downkeys.delete key
+          if @downkeys.empty?
+            # Enact any chords we currently matched
+            any_enacted = false
+            Crafty::Chord.iterate_chords(@reachable_chords) do |chord|
+              if chord.enabled? and chord.keys.length === @sequence_index - 1
+                # This chord was activated if we have the right modifiers and initial downkeys
+                if chord.matches? cur_modifiers, @initial_downkeys, @sequence_index
+                  chord.enact
+                  any_enacted = true
+                end
+              end
+            end
+            # If no chords were enacted, we'll wait for a keydown before doing anything. Otherwise, we'll return to the
+            # initial state.
+            return any_enacted ? Idle.new : self
+          else
+            return self
+          end
+        else
+          # We lost track of keys somehow, just fall into the dead end
+          return DeadEnd.new @downkeys
+        end
+      end
+
+      def accept_keydown(key, cur_modifiers, chordset)
+        if @downkeys.empty?
+          # Treat this as the start of a new subchord
+          return ChordsetState.key_state_from_downkeys @reachable_chords, cur_modifiers, [key], @sequence_index + 1
+        else
+          # We're not expecting this, so we'll move to the dead end
+          return DeadEnd.new @downkeys + key
+        end
+      end
+    end # class KeychordUp
+
+    class DeadEnd < ChordsetState
+      # @param downkeys [Array<String>] the currently depressed keys
+      def initialize(downkeys)
+        @downkeys = downkeys.to_set
+      end
+
+      def reachable_chords(chordset); []; end
+
+      def accept_modifier_change(cur_modifiers, chordset)
+        if downkeys.empty? and cur_modifiers === 0
+          return Idle.new
+        else
+          return self
+        end
+      end
+
+      def accept_keydown(key, cur_modifiers, chordset)
+        @downkeys << key
         return self
       end
-    end
-  end # class AwaitingFirstKeyState
 
-  class AwaitingNextKeyState < ChordState
-    def initialize(sequence_index)
-      @sequence_index = sequence_index
-    end
-
-    def accept_click(button, chord, cur_modifiers)
-      return chord.state_from_modifiers cur_modifiers
-    end
-
-    def accept_modifier_change(chord, cur_modifiers)
-      if cur_modifiers != chord.modifiers
-        return chord.state_from_modifiers cur_modifiers
-      else
-        return self
+      def accept_keyup(key, cur_modifiers, chordset)
+        @downkeys.delete key
+        self.accept_modifier_change cur_modifiers, chordset
       end
-    end
+    end # class DeadEnd
+  end # class ChordsetState
 
-    def accept_keypress(key, chord, cur_modifiers)
-      # TODO: support chords; for now assume each sequence is a singleton
-      if key === chord.keys[@sequence_index][0]
-        return @sequence_index >= chord.keys.length ?
-          TriggeredChordState.new :
-          AwaitingNextKeyState.new(@sequence_index + 1)
-      else
-        return chord.state_from_modifiers cur_modifiers
-      end
-    end
-  end # class AwaitingNextKeyState
-
-  class AwaitingButtonState < ChordState
-    def reachable?; true; end
-
-    def accept_modifier_change(chord, cur_modifiers)
-      return chord.state_from_modifiers cur_modifiers
-    end
-
-    def accept_click(button, chord, cur_modifiers)
-      if button === chord.button
-        return TriggeredChordState.new
-      else
-        return self
-      end
-    end
-  end # class AwaitingButtonState
-
-  class TriggeredChordState < ChordState
-    def enact?; true; end
-  end
-  class UnreachableChordState < ChordState
-    # This state can never be reached. That's the whole point ;)
-    def reachable?; false; end
-
-    def after_enact(chord, modifiers)
-      return chord.state_from_modifiers modifiers
-    end
-
-    def accept_modifier_change(chord, cur_modifiers)
-      return chord.state_from_modifiers cur_modifiers
-    end
-  end
   module Util
     # Converts the given keycode to the string representation for the current platform
     # @param keycode [Integer] the OS keycode provided

@@ -3,7 +3,6 @@ require 'crafty/util.rb'
 
 module Crafty
   module HighlightIntersections
-
     # Initializes the highlighting tool
     def self.start_tool
       selected_solids = Sketchup.active_model.selection.find_all { |e| (e.is_a? Sketchup::Group) and e.manifold? }
@@ -16,7 +15,7 @@ module Crafty
       end
     end
 
-    # Returns a group that represents the complete interesection of all given solids.
+    # Returns a group that represents the complete intersection of all given solids.
     # @param solids [Enumerable<Sketchup::Group>] the solids to intersect. If any solid is not manifold, it will be
     #   ignored
     # @return [nil, Sketchup::Group] the resultant intersection, or `nil` if any of the solids don't overlap
@@ -50,6 +49,5 @@ module Crafty
         return collection.find_all { |e| (e.is_a? Sketchup::Group) and e.manifold? }
       end
     end
-
   end # module HighlightIntersections
 end # module Crafty

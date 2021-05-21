@@ -3,12 +3,13 @@ require 'crafty/consts.rb'
 
 module Crafty
   module Util
-
     # Utility method to quickly reload the tutorial files. Useful for development.
-    # Can be run from SketchUp's ruby console via entering `Crafty::Util.reload`
+    # Can be run from Sketchup's ruby console via entering `Crafty::Util.reload`
     # @return [Integer] Number of files reloaded.
     def self.reload
-      pattern = File.join(__dir__, '**/*.rb')
+      dir = __dir__.dup
+      dir.force_encoding('UTF-8') if dir.respond_to?(:force_encoding)
+      pattern = File.join(dir, '**/*.rb')
       Dir.glob(pattern).each { |file|
         # Cannot use `Sketchup.load` because its an alias for `Sketchup.require`.
         load file
@@ -103,6 +104,5 @@ module Crafty
         end
       end
     end
-
   end # module Util
 end # module Crafty

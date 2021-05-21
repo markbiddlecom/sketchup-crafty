@@ -1,7 +1,32 @@
 {
-  "solargraph.diagnostics": true,
   "cSpell.words": [
+    "Keychord",
+    "LBUTTON",
+    "Numpad",
+    "RBUTTON",
     "Sketchup",
-    "rubocop"
+    "Sketchup's",
+    "antimodifiers",
+    "chordset",
+    "consts",
+    "downkeys",
+    "keycodes",
+    "keydown",
+    "keymap",
+    "keypress",
+    "keyup",
+    "papercraft",
+    "polyline",
+    "pushpull",
+    "rubocop",
+    "subchord",
+    "yieldparam"
   ],
+  "ruby.useLanguageServer": true,
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "cSpell.enableFiletypes": [
+    "ruby"
+  ],
+  "files.eol": "\r\n"
 }

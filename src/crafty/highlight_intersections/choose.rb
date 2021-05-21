@@ -5,7 +5,7 @@ module Crafty
   module HighlightIntersections
     class Choose < Crafty::ToolStateMachine::Mode
       # Creates a new mode class
-      # @param primary_face [Skethcup::Face] the face we're going to plot intersections for
+      # @param primary_face [Sketchup::Face] the face we're going to plot intersections for
       def initialize(primary_face)
         @primary_face = primary_face
         @penetration_areas = HighlightIntersections.new_empty_faces_list
@@ -18,7 +18,6 @@ module Crafty
     def self.new_empty_faces_list
       return []
     end
-
   end # module HighlightIntersections
 
   STATUS_ADD_INTERSECTING_GROUP = "[Shift + Left-Click] on a solid group to intersect the source face with"

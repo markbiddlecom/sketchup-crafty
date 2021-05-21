@@ -5,6 +5,7 @@ AllCops:
   # This prevents normal RuboCop cops to run. Disable this to get full static
   # analysis of your Ruby code.
   DisabledByDefault: true
+  NewCops: disable
 
   DisplayCopNames: true
   DisplayStyleGuide: true
@@ -35,4 +36,21 @@ SketchupSuggestions:
   Enabled: true
 
 SketchupBugs:
+  Enabled: true
+
+Layout/EmptyLines:
+  Enabled: true
+
+Layout:
+  EmptyLineBetweenDefs:
+    NumberOfEmptyLines: 1
+    AllowAdjacentOneLineDefs: false
+  EmptyLineBetweenMethodDefs/Enabled: true
+  EmptyLineBetweenClassDefs/Enabled: true
+  EmptyLineBetweenModuleDefs/Enabled: true
+
+Layout/EmptyLinesAroundClassBody:
+  Enabled: true
+
+Layout/EmptyLinesAroundModuleBody:
   Enabled: true

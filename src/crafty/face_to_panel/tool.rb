@@ -1,4 +1,5 @@
 require 'sketchup.rb'
+require 'crafty/attributes.rb'
 require 'crafty/consts.rb'
 require 'crafty/tool_state_machine.rb'
 require 'crafty/util.rb'
@@ -25,8 +26,8 @@ module Crafty
     # Creates a clone of the given face in its own group (within active_entities) and extrudes it to the given depth
     # @param face [Sketchup::Face] the face to clone and extrude
     # @param depth [Geom::Length] the distance to extrude the face
-    # @param offset [Geom::Vector3d] an offset to apply to all the verticies in `face`
-    # @param suppress_undo [Boolean] set to `true` to disable this command being wraped in an operation
+    # @param offset [Geom::Vector3d] an offset to apply to all the vertices in `face`
+    # @param suppress_undo [Boolean] set to `true` to disable this command being wrapped in an operation
     # @return [Sketchup::Group, nil] the group containing the cloned and extruded face, or `nil` if the operation
     #   couldn't complete
     def self.apply(face, depth, offset, suppress_undo = false)
@@ -57,6 +58,5 @@ module Crafty
         view.draw_polyline (Crafty::Util.loop_to_closed_pts l, offset)
       }
     end
-
   end # module FaceToPanel
 end # module Crafty

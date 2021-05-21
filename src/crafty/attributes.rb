@@ -9,7 +9,7 @@ module Crafty
 
     # Retrieves an attribute from the entity assuming the crafty dictionary
     # @param entity [Sketchup::Entity] the entity from which to retrieve the attribute
-    # @param atribute_name [String] the attribute to retrieve
+    # @param attribute_name [String] the attribute to retrieve
     # @param default_value the default value to return
     # @return the value of the attribute or `default_value` if the attribute is not found
     def self.get_attribute(entity, attribute_name, default_value = nil)

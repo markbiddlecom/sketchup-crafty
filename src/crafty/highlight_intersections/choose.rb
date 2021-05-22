@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require 'sketchup.rb'
+require 'crafty/chord.rb'
 require 'crafty/util.rb'
 
 module Crafty
   module HighlightIntersections
     class Choose < Crafty::ToolStateMachine::Mode
-      # Creates a new mode class
       # @param primary_face [Sketchup::Face] the face we're going to plot intersections for
       def initialize(primary_face)
         @primary_face = primary_face
@@ -21,10 +21,6 @@ module Crafty
       []
     end
   end # module HighlightIntersections
-
-  STATUS_ADD_INTERSECTING_GROUP = '[Shift + Left-Click] on a solid group to intersect the source face with'
-  STATUS_READY = '[Shift + Left-Click] add/remove intersecting solid; [Tab] cycle intersection highlights; ' \
-                 '[Left-Click]/[Shift + Tab]'
 
   FACES_MODE_PENETRATING = 'penetrating'
   FACES_MODE_ABUTTING = 'abutting'

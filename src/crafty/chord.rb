@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'sketchup.rb'
+require 'crafty/tool_state_machine.rb'
 require 'crafty/util.rb'
 
 module Crafty
@@ -11,8 +12,10 @@ module Crafty
     MODIFIERS = [CTRL_CMD, ALT_OPTION, SHIFT].freeze
     MODIFIER_NAMES = Sketchup.platform == :platform_win ? %w[Ctrl Alt Shift] : %w[⌘ Option Shift]
 
-    LBUTTON = 0b010000
-    RBUTTON = 0b100000
+    LBUTTON = 0b00010000
+    RBUTTON = 0b00100000
+    LDRAG =   0b01000000
+    RDRAG =   0b10000000
 
     TAB = 'Tab'
     ESCAPE = 'Escape'
@@ -100,8 +103,8 @@ module Crafty
     end
 
     # Invokes this chord's block
-    def enact
-      @block.call self
+    def enact(event)
+      @block.call self, event
     end
 
     # @param keys [nil, Array<String, Array<String>>]
@@ -139,7 +142,57 @@ module Crafty
     def self.iterate_chords(chords, &block)
       chords.each(&block)
     end
+
+    # @return [Proc]
+    # @yield [chord, event] called when a chord's command is enacted
+    # @yieldparam chord [Chord] the chord that was enacted
+    # @yieldparam event [EnactEvent, ClickEnactEvent, DragEnactEvent] an event describing the cause of the enactment
+    def self.event_handler(&block)
+      block
+    end
   end # class Chord
+
+  class EnactEvent
+    # @return [nil, Crafty::ToolStateMachine::Mode] this can optionally be set to a non-`nil` value by
+    #   the event handler to indicate that the
+    attr_reader :new_state
+  end # class EnactEvent
+
+  class ClickEnactEvent < EnactEvent
+    # @param x [Numeric] the x-coordinate where the mouse was clicked
+    # @param y [Numeric] the y-coordinate where the mouse was clicked
+    def initialize(x, y)
+      @x = x
+      @y = y
+    end
+
+    # @return [Numeric] the x-coordinate where the mouse was clicked
+    attr_reader :x
+
+    # @return [Numeric] the y-coordinate where the mouse was clicked
+    attr_reader :y
+  end # class ClickEnactEvent
+
+  class DragEnactEvent < EnactEvent
+    # @param x_start [Numeric] the x-coordinate where the user started dragging
+    # @param y_start [Numeric] the y-coordinate where the user started dragging
+    # @param x_end [Numeric] the x-coordinate where the user ended dragging
+    # @param y_end [Numeric] the y-coordinate where the user ended dragging
+    def initialize(x_start, y_start, x_end, y_end)
+      @bounds = Geom::Bounds2d.new(
+          [x_start, x_end].min, [y_start, y_end].min,
+          (x_end - x_start).abs, (y_end - y_start).abs
+        )
+      @direction = x_end >= x_start ? :left_to_right : :right_to_left
+    end
+
+    # @return [Geom::Bounds2d] the bounds of the rectangle dragged by the user
+    attr_reader :bounds
+
+    # @return [:left_to_right, :right_to_left] `:left_to_right` if the user started drawing the rectangle on the
+    #   left side and `:right_to_left` otherwise.
+    attr_reader :direction
+  end # DragEnactEvent
 
   class Chordset
     # @param chords [Array<Hash>] initialization parameters for the chords to track
@@ -165,6 +218,12 @@ module Crafty
     def status
       @chords.find_all(&:reachable?).map(&:help_message).join('; ')
     end
+
+    # @param command [Symbol] the ID of the command to enable
+    def enable!(command); end
+
+    # @param command [Symbol] the ID of the command to disable
+    def disable!(command); end
 
     # @param keycode [Numeric] the ID of the key that was depressed
     # @return [Boolean] `true` if any chords changed state, and `false` otherwise
@@ -206,8 +265,9 @@ module Crafty
         trigger = chord_hash[:trigger]
         Chord.new(
             chordset,
+            chord_hash[:cmd],
             chord_hash[:help],
-            chord_hash[:modifiers],
+            chord_hash[:modifiers] || 0,
             trigger.is_a?(Numeric) ? trigger : 0,
             *(trigger.is_a?(Numeric) ? [] : trigger),
             &(chord_hash[:on_trigger])

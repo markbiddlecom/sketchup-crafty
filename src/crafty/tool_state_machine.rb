@@ -1,10 +1,18 @@
 # frozen_string_literal: true
 
 require 'sketchup.rb'
+require 'crafty/chord.rb'
 
 module Crafty
   module ToolStateMachine
     class Mode
+      EMPTY_CHORDSET = Crafty::Chordset.new
+
+      # @return [Crafty::Chordset] the command chords applicable to this mode
+      def chordset
+        EMPTY_CHORDSET
+      end
+
       # @return [Boolean] `true` if the tool should invoke {#on_return} when a simple left-click is detected, and
       #   `false` if it should invoke {#on_l_click} instead.
       def return_on_l_click
@@ -109,12 +117,16 @@ module Crafty
 
       # @param view [Sketchup::View]
       def resume(view)
-        self.set_status
+        self.update_status
         view.invalidate
       end
 
       def onLButtonDown(_flags, x, y, _view)
         @lbutton_down = [x, y]
+      end
+
+      def onRButtonDown(_flags, x, y, _view)
+        @rbutton_down = [x, y]
       end
 
       # @param view [Sketchup::View]
@@ -127,16 +139,42 @@ module Crafty
             else
               self.apply_mode (@mode.on_l_click self, flags, dx, dy, view), view
             end
+            @mode.chordset.on_click(Crafty::Chord::LBUTTON)
           end
         end
         @lbutton_down = nil
-        self.set_status
+        self.update_status
+      end
+
+      # @param view [Sketchup::View]
+      def onRButtonUp(_flags, x, y, _view)
+        unless @rbutton_down.nil?
+          dx, dy = @rbutton_down
+          if (dx - x).abs + (dy - y).abs < 5
+            self.update_status if @mode.chordset.on_click(Crafty::Chord::RBUTTON)
+          end
+        end
+        @rbutton_down = nil
       end
 
       # @param view [Sketchup::View]
       def onMouseMove(flags, x, y, view)
         self.apply_mode (@mode.on_mouse_move self, flags, x, y, view), view
-        self.set_status
+        self.update_status
+      end
+
+      # @param view [Sketchup::View]
+      def onKeyDown(key, repeat, _flags, _view)
+        if repeat == 1
+          self.update_status if @mode.chordset.on_keydown(key)
+        end
+      end
+
+      # @param view [Sketchup::View]
+      def onKeyUp(key, repeat, _flags, _view)
+        if repeat == 1
+          self.update_status if @mode.chordset.on_keyup(key)
+        end
       end
 
       # @param view [Sketchup::View]
@@ -147,12 +185,12 @@ module Crafty
       # @param view [Sketchup::View]
       def onReturn(view)
         self.apply_mode (@mode.on_return self, view), view
-        self.set_status
+        self.update_status
       end
 
       def onUserText(text, view)
         self.apply_mode (@mode.on_value self, text, view), view
-        self.set_status
+        self.update_status
       end
 
       def getExtents
@@ -175,7 +213,7 @@ module Crafty
         end
       end
 
-      def set_status
+      def update_status
         Sketchup.status_text = @mode.status
       end
 

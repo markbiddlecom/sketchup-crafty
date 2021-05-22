@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sketchup.rb'
 require 'crafty/util.rb'
 
@@ -7,28 +9,28 @@ module Crafty
     ALT_OPTION = 0b0010
     SHIFT =      0b0100
     MODIFIERS = [CTRL_CMD, ALT_OPTION, SHIFT].freeze
-    MODIFIER_NAMES = Sketchup.platform === :platform_win ? %w[Ctrl Alt Shift] : ['⌘', 'Option', 'Shift']
+    MODIFIER_NAMES = Sketchup.platform == :platform_win ? %w[Ctrl Alt Shift] : %w[⌘ Option Shift]
 
     LBUTTON = 0b010000
     RBUTTON = 0b100000
 
-    TAB = 'Tab'.freeze
-    ESCAPE = 'Escape'.freeze
-    F1 = 'F1'.freeze
-    F2 = 'F2'.freeze
-    F3 = 'F3'.freeze
-    F4 = 'F4'.freeze
-    F5 = 'F5'.freeze
-    F6 = 'F6'.freeze
-    F7 = 'F7'.freeze
-    F8 = 'F8'.freeze
-    F9 = 'F9'.freeze
-    F10 = 'F10'.freeze
-    F11 = 'F11'.freeze
-    F12 = 'F12'.freeze
-    DEL = 'Del'.freeze
-    INS = 'Ins'.freeze
-    SPACE = 'Space'.freeze
+    TAB = 'Tab'
+    ESCAPE = 'Escape'
+    F1 = 'F1'
+    F2 = 'F2'
+    F3 = 'F3'
+    F4 = 'F4'
+    F5 = 'F5'
+    F6 = 'F6'
+    F7 = 'F7'
+    F8 = 'F8'
+    F9 = 'F9'
+    F10 = 'F10'
+    F11 = 'F11'
+    F12 = 'F12'
+    DEL = 'Del'
+    INS = 'Ins'
+    SPACE = 'Space'
 
     # Creates a new enabled chord in the given set
     # @param chordset [Chordset] the set to associate the chord with
@@ -86,9 +88,9 @@ module Crafty
     # @param sequence_index [Integer] the index of the subchord within `keys` to compare `downkeys` with
     # @return [Boolean] `true` if this chord's configuration matches the given parameters.
     def matches?(cur_modifiers, downkeys, sequence_index)
-      (cur_modifiers === @modifiers and
-        sequence_index < @keys.length and
-        (downkeys.to_set | @keys[sequence_index]).length === @keys[sequence_index].length)
+      (cur_modifiers == @modifiers &&
+        sequence_index == @keys.length - 1 &&
+        (downkeys.to_set | @keys[sequence_index]).length == @keys[sequence_index].length)
     end
 
     # @return [Boolean] `true` if this chord can be activated (the default), and `false` otherwise.
@@ -123,7 +125,7 @@ module Crafty
       needed_mods += ' + ' unless needed_mods.empty?
       input = ''
       if keys.empty?
-        input = button === LBUTTON ? 'Left Click' : 'Right Click'
+        input = button == LBUTTON ? 'Left Click' : 'Right Click'
       else
         input = (keys.map { |chord| chord.join ' + ' }).join ', '
       end
@@ -161,43 +163,84 @@ module Crafty
 
     # @return [String] a string including all of the chords that are currently reachable
     def status
-      ((@chords.find_all { |c| c.reachable? }).map { |_c| help_message }).join '; '
+      @chords.find_all(&:reachable?).map(&:help_message).join('; ')
     end
 
     # @param keycode [Numeric] the ID of the key that was depressed
     # @return [Boolean] `true` if any chords changed state, and `false` otherwise
-    def on_key_down(keycode)
-      if (keycode === VK_CONTROL) || (keycode == VK_COMMAND)
-        self.modifier_down Chord::CTRL_CMD
-      elsif (keycode === VK_ALT) || ((Sketchup.platform === :platform_osx) && (keycode === COPY_MODIFIER_KEY))
-        self.modifier_down Chord::ALT_OPTION
-      elsif keycode === VK_SHIFT
-        self.modifier_down Chord::SHIFT
+    def on_keydown(keycode)
+      modifier = self.keycode_to_modifier keycode
+      if modifier.nil?
+        key = Util.keycode_to_key keycode
+        self.apply_state @state.accept_keydown(key, @current_modifiers, self)
+      else
+        self.modifier_down modifier
       end
     end
 
     # @param keycode [Numeric] the ID of the key that was released
     # @return [Boolean] `true` if any chords changed state, and `false` otherwise
-    def on_key_up(keycode)
-      if (keycode === VK_CONTROL) || (keycode == VK_COMMAND)
-        self.modifier_up Chord::CTRL_CMD
-      elsif (keycode === VK_ALT) || ((Sketchup.platform === :platform_osx) && (keycode === COPY_MODIFIER_KEY))
-        self.modifier_up Chord::ALT_OPTION
-      elsif keycode === VK_SHIFT
-        self.modifier_up Chord::SHIFT
-      else
+    def on_keyup(keycode)
+      modifier = self.keycode_to_modifier keycode
+      if modifier.nil?
         key = Util.keycode_to_key keycode
-        changed = false
-        @chords.each do |chord|
-          new_state = chord.state.accept_keypress key, chord, @current_modifiers
-          next unless new_state != chord.state
-          changed = true
-          chord.state = new_state
-        end
-        changed
+        self.apply_state @state.accept_keyup(key, @current_modifiers, self)
+      else
+        self.modifier_up modifier
       end
     end
+
+    # @param button [Numeric] the ID of the button that was clicked.
+    #   @see #{Crafty::Chord.LBUTTON}
+    #   @see #{Crafty::Chord.RBUTTON}
+    # @return [Boolean] `true` if the reachable chords changed state, and `false` otherwise
+    def on_click(button)
+      self.apply_state @state.accept_click(button, @current_modifiers, self)
+    end
+
+    # @param chordset [Chordset] the chordset to associate the chords with
+    # @param chords [Array<Hash>] the initialization options for the chords
+    # @return [Array<Chord>] the initialized chords
+    def self.chords_from_hashes(chordset, chords)
+      chords.map do |chord_hash|
+        trigger = chord_hash[:trigger]
+        Chord.new(
+            chordset,
+            chord_hash[:help],
+            chord_hash[:modifiers],
+            trigger.is_a?(Numeric) ? trigger : 0,
+            *(trigger.is_a?(Numeric) ? [] : trigger),
+            &(chord_hash[:on_trigger])
+          )
+      end
+    end
+
+    # @param keycode [Numeric] the key in question
+    # @return [nil, Numeric] the modifier key that maps to `keycode`, or `nil` if `keycode` does not represent a
+    #   modifier
+    def self.keycode_to_modifier(keycode)
+      if (keycode == VK_CONTROL) || (keycode == VK_COMMAND)
+        Chord::CTRL_CMD
+      elsif (keycode == VK_ALT) || ((Sketchup.platform == :platform_osx) && (keycode == COPY_MODIFIER_KEY))
+        Chord::ALT_OPTION
+      elsif keycode == VK_SHIFT
+        Chord::SHIFT
+      end
+    end
+
     private
+
+    # @param new_state [ChordsetState] the state to apply
+    # @return [Boolean] whether the state actually changed
+    def apply_state(new_state)
+      if new_state != @state
+        @state = new_state
+        true
+      else
+        false
+      end
+    end
+
     # @param modifier [Integer] the modifier that was depressed
     # @return [Boolean] whether any state changes occurred
     def modifier_down(modifier)
@@ -214,28 +257,10 @@ module Crafty
 
     # @return [Boolean] whether any state changes occurred
     def trigger_modifier_change
-      @chords.each do |chord|
-        new_state = chord.state.accept_modifier_change chord, @current_modifiers
-      end
-    end
-
-    # @param chordset [Chordset] the chordset to associate the chords with
-    # @param chords [Array<Hash>] the initialization options for the chords
-    # @return [Array<Chord>] the initialized chords
-    def self.chords_from_hashes(chordset, chords)
-      chords.map do |chord_hash|
-        trigger = chord_hash[:trigger]
-        Chord.new(
-            chordset,
-            chord_hash[:help],
-            chord_hash[:modifiers],
-            (trigger.is_a? Numeric) ? trigger : 0,
-            *((trigger.is_a? Numeric) ? [] : trigger),
-            &(chord_hash[:on_trigger])
-          )
-      end
+      self.apply_state @state.accept_modifier_change @current_modifiers, self
     end
   end # class Chordset
+
   class ChordsetState
     # @param chordset [Chordset] the chordset whose reachable chords should be returned
     # @return [Array<Chord>] the set of chords that are currently reachable with further input
@@ -281,7 +306,7 @@ module Crafty
     # @return [ChordsetState] the activated state given the current set of reachable chords
     def self.key_state_from_downkeys(available_chords, cur_modifiers, downkeys, sequence_index)
       reachable_chords = available_chords.find_all do |chord|
-        if chord.enabled? && (chord.modifiers === cur_modifiers) && (chord.button === 0)
+        if chord.enabled? && (chord.modifiers == cur_modifiers) && (chord.button == 0)
           # This chord is still reachable if it has a key sequence with the given index and if the current set of
           # downkeys doesn't contain any keys not expected by the chord
           if chord.keys.length > sequence_index
@@ -301,7 +326,7 @@ module Crafty
     class Idle < ChordsetState
       def accept_click(button, cur_modifiers, chordset)
         chordset.chords.each do |chord|
-          chord.enact if chord.enabled? && chord.modifiers === cur_modifiers && chord.button === button
+          chord.enact if chord.enabled? && chord.modifiers == cur_modifiers && chord.button == button
         end
         self
       end
@@ -364,12 +389,10 @@ module Crafty
             # Enact any chords we currently matched
             any_enacted = false
             Crafty::Chord.iterate_chords(@reachable_chords) do |chord|
-              if chord.enabled? && (chord.keys.length === @sequence_index - 1)
-                # This chord was activated if we have the right modifiers and initial downkeys
-                if chord.matches? cur_modifiers, @initial_downkeys, @sequence_index
-                  chord.enact
-                  any_enacted = true
-                end
+              # This chord was activated if we have the right modifiers and initial downkeys
+              if chord.enabled? && chord.matches?(cur_modifiers, @initial_downkeys, @sequence_index)
+                chord.enact
+                any_enacted = true
               end
             end
             # If no chords were enacted, we'll wait for a keydown before doing anything. Otherwise, we'll return to the
@@ -406,7 +429,7 @@ module Crafty
       end
 
       def accept_modifier_change(cur_modifiers, _chordset)
-        if downkeys.empty? && (cur_modifiers === 0)
+        if downkeys.empty? && (cur_modifiers == 0)
           Idle.new
         else
           self
@@ -437,18 +460,18 @@ module Crafty
       @@keymap.include? keycode ? @@keymap[keycode] : keycode.to_s
     end
 
-    def self.create_keymap()
+    def self.create_keymap
       keymap = {}
       # Common key codes
       keymap[VK_DELETE] = Chord::DEL
       keymap[VK_INSERT] = Chord::INS
       keymap[VK_SPACE] = Chord::SPACE
       # Windows codes
-      if Sketchup.platform === :platform_win
+      if Sketchup.platform == :platform_win
         self.add_win_keycodes keymap
       end
       # OSX codes
-      if Sketchup.platform === :platform_osx
+      if Sketchup.platform == :platform_osx
         self.add_osx_keycodes keymap
       end
       keymap
@@ -457,6 +480,7 @@ module Crafty
     # @param keymap [Hash] the map to which the codes are added
     def self.add_win_keycodes(keymap)
       # https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+      # rubocop:disable Style/Semicolon
       keymap[0x09] = Chord::TAB
       keymap[0x1B] = Chord::ESCAPE
       keymap[0x30] = '0'; keymap[0x31] = '1'; keymap[0x32] = '2'; keymap[0x33] = '3'; keymap[0x34] = '4'
@@ -471,13 +495,15 @@ module Crafty
       keymap[0x60] = '0'; keymap[0x61] = '1'; keymap[0x62] = '2'; keymap[0x63] = '3'; keymap[0x64] = '4'
       keymap[0x65] = '5'; keymap[0x66] = '6'; keymap[0x67] = '7'; keymap[0x68] = '8'; keymap[0x69] = '9'
       # F-keys
-      keymap[0x70] = Chord::F1; keymap[0x71] = Chord::F2; keymap[0x72] = Chord::F3; keymap[0x73] = Chord::F4;
-      keymap[0x74] = Chord::F5; keymap[0x75] = Chord::F6; keymap[0x76] = Chord::F7; keymap[0x77] = Chord::F8;
+      keymap[0x70] = Chord::F1; keymap[0x71] = Chord::F2; keymap[0x72] = Chord::F3; keymap[0x73] = Chord::F4
+      keymap[0x74] = Chord::F5; keymap[0x75] = Chord::F6; keymap[0x76] = Chord::F7; keymap[0x77] = Chord::F8
       keymap[0x78] = Chord::F9; keymap[0x79] = Chord::F10; keymap[0x7A] = Chord::F11; keymap[0x7B] = Chord::F12
+      # rubocop:enable Style/Semicolon
     end
 
     def self.add_osx_keycodes(keymap)
       # https://github.com/phracker/MacOSX-SDKs/blob/master/MacOSX10.6.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
+      # rubocop:disable Style/Semicolon
       keymap[0x00] = 'A'; keymap[0x01] = 'S'; keymap[0x02] = 'D'; keymap[0x03] = 'F'; keymap[0x04] = 'H'
       keymap[0x05] = 'G'; keymap[0x06] = 'Z'; keymap[0x07] = 'X'; keymap[0x08] = 'C'; keymap[0x09] = 'V'
       keymap[0x0B] = 'B'; keymap[0x0C] = 'Q'; keymap[0x0D] = 'W'; keymap[0x0E] = 'E'; keymap[0x0F] = 'R'
@@ -496,6 +522,7 @@ module Crafty
       keymap[0x64] = Chord::F8; keymap[0x65] = Chord::F9; keymap[0x67] = Chord::F11; keymap[0x69] = Chord::F13
       keymap[0x6A] = Chord::F16; keymap[0x6B] = Chord::F14; keymap[0x6D] = Chord::F10; keymap[0x6F] = Chord::F12
       keymap[0x76] = Chord::F4; keymap[0x78] = Chord::F2; keymap[0x7A] = Chord::F1
+      # rubocop:enable Style/Semicolon
     end
   end # module Util
 end # module Crafty

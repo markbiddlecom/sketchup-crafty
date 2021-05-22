@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sketchup.rb'
 require 'crafty/util.rb'
 
@@ -16,14 +18,15 @@ module Crafty
 
     # @return [Array<Sketchup::Face>]
     def self.new_empty_faces_list
-      return []
+      []
     end
   end # module HighlightIntersections
 
-  STATUS_ADD_INTERSECTING_GROUP = "[Shift + Left-Click] on a solid group to intersect the source face with"
-  STATUS_READY = "[Shift + Left-Click] add/remove intersecting solid; [Tab] cycle intersection highlights; [Left-Click]/[Shift + Tab]"
+  STATUS_ADD_INTERSECTING_GROUP = '[Shift + Left-Click] on a solid group to intersect the source face with'
+  STATUS_READY = '[Shift + Left-Click] add/remove intersecting solid; [Tab] cycle intersection highlights; ' \
+                 '[Left-Click]/[Shift + Tab]'
 
-  FACES_MODE_PENETRATING = "penetrating"
-  FACES_MODE_ABUTTING = "abutting"
-  FACES_MODE_ALL = "all"
+  FACES_MODE_PENETRATING = 'penetrating'
+  FACES_MODE_ABUTTING = 'abutting'
+  FACES_MODE_ALL = 'all'
 end # module Crafty

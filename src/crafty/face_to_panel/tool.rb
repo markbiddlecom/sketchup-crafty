@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sketchup.rb'
 require 'crafty/attributes.rb'
 require 'crafty/consts.rb'
@@ -12,7 +14,7 @@ module Crafty
       # If a face is already selected, apply to that face; otherwise, ask the user to select a face
       sel = Sketchup.active_model.selection
       mode = Unselected.new
-      if sel.length == 1 and sel[0].is_a? Sketchup::Face
+      if (sel.length == 1) && sel[0].is_a?(Sketchup::Face)
         mode = Selected.new sel[0]
       end
       mode
@@ -32,6 +34,7 @@ module Crafty
     #   couldn't complete
     def self.apply(face, depth, offset, suppress_undo = false)
       return nil if face.nil?
+
       Crafty::Util.wrap_with_undo('Face to Panel', suppress_undo) do
         group = Sketchup.active_model.active_entities.add_group
         group.name = 'Panel'
@@ -48,14 +51,14 @@ module Crafty
     # @param color [String, Sketchup::Color] the color to draw the face in
     # @param stipple [String] the stipple pattern for the face
     # @param offset [Geom::Vector3d] an offset for the rendered face
-    def self.highlight_face(face, view, color = "red", line_width = 5, stipple = "", offset = ZERO_VECTOR)
+    def self.highlight_face(face, view, color = 'red', line_width = 5, stipple = '', offset = ZERO_VECTOR)
       view.drawing_color = color
       view.line_stipple = stipple
       view.line_width = line_width
-      view.draw_polyline (Crafty::Util.loop_to_closed_pts face.outer_loop, offset)
+      view.draw_polyline(Crafty::Util.loop_to_closed_pts(face.outer_loop, offset))
       view.line_width = [1, line_width - 2].max
       face.loops[1...face.loops.length].each { |l|
-        view.draw_polyline (Crafty::Util.loop_to_closed_pts l, offset)
+        view.draw_polyline(Crafty::Util.loop_to_closed_pts(l, offset))
       }
     end
   end # module FaceToPanel

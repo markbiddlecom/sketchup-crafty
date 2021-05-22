@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Copyright 2016-2019 Trimble Inc
 # Licensed under the MIT license
 

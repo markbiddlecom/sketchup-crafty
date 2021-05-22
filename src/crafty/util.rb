@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'sketchup.rb'
 require 'crafty/consts.rb'
 
@@ -23,10 +25,11 @@ module Crafty
     # @return the return value of the block
     def self.wrap_with_undo(operation_name, suppress = false, &block)
       return block.call if suppress
+
       begin
         Sketchup.active_model.start_operation operation_name, true
         return block.call
-      rescue
+      rescue StandardError
         Sketchup.active_model.abort_operation
         raise
       else
@@ -40,7 +43,7 @@ module Crafty
     # @param offset [Geom::Vector3d] an offset to apply to each point
     # @return [Array<Geom::Point3d>] the points from the loop
     def self.loop_to_closed_pts(loop, offset = ZERO_VECTOR)
-      return (loop.vertices.map { |v| v.position + offset }) + [loop.vertices[0].position + offset]
+      (loop.vertices.map { |v| v.position + offset }) + [loop.vertices[0].position + offset]
     end
 
     # Copies the edges and faces for the given face element to the given group
@@ -48,26 +51,26 @@ module Crafty
     # @param entities [Sketchup::Entities] the entities list to clone the face into
     # @param offset [Geom::Vector3d] an optional offset for all the face's vertices
     # @return [Sketchup::Face] the cloned face within `entities`
-    def self.clone_face(face, entities, offset = ZERO_VECTOR)
-      outer_face = entities.add_face (face.outer_loop.vertices.map { |v| v.position.offset(offset) })
-      inner_faces = face.loops[1..face.loops.length].map { |inner_loop|
-        entities.add_face (inner_loop.vertices.map { |v| v.position.offset(offset) } )
+    def self.clone_inner_face(_face, entities, offset = ZERO_VECTOR)
+      outer_face = entities.add_face(inner_face.outer_loop.vertices.map { |v| v.position.offset(offset) })
+      inner_faces = inner_face.loops[1..inner_face.loops.length].map { |inner_loop|
+        entities.add_face(inner_loop.vertices.map { |v| v.position.offset(offset) })
       }
-      inner_faces.each { |face| face.erase! }
-      return outer_face
+      inner_faces.each(&:erase!)
+      outer_face
     end
 
     # @param input [nil, String, Array<String>, Object, Array<Object>]
     # @return [Array<String>]
     def self.to_str_array(input = nil)
       if input.nil?
-        return []
+        []
       elsif input.is_a? String
-        return [input]
+        [input]
       elsif input.is_a? Array
-        return input.map { |e| e.to_s }
+        input.map(&:to_s)
       else
-        return [input.to_s]
+        [input.to_s]
       end
     end
 
@@ -80,7 +83,7 @@ module Crafty
 
       # @return [String] the current mode of this cycle.
       def cur_mode
-        return @modes[@cur_mode % @modes.length]
+        @modes[@cur_mode % @modes.length]
       end
 
       # Advances this cycle by the given amount
@@ -88,7 +91,7 @@ module Crafty
       # @return [Cycle] this cycle instance, for method chaining or comparison
       def advance(amount = 1)
         @cur_mode += amount
-        return self
+        self
       end
 
       # @param string_or_cycle [String, Cycle] the value to compare
@@ -96,11 +99,11 @@ module Crafty
       #   otherwise.
       def ===(string_or_cycle)
         if string_or_cycle.is_a? String
-          return self.cur_mode === string_or_cycle
+          self.cur_mode == string_or_cycle
         elsif string_or_cycle.is_a? Cycle
-          return self.cur_mode === string_or_cycle.cur_mode
+          self.cur_mode == string_or_cycle.cur_mode
         else
-          return false
+          false
         end
       end
     end

@@ -1,5 +1,6 @@
 {
   "cSpell.words": [
+    "Biddlecom",
     "Keychord",
     "LBUTTON",
     "LDRAG",
@@ -12,6 +13,7 @@
     "antimodifiers",
     "chordset",
     "consts",
+    "debuggability",
     "downkeys",
     "keycodes",
     "keydown",
@@ -19,12 +21,14 @@
     "keypress",
     "keyup",
     "messagebox",
+    "othr",
     "papercraft",
     "polyline",
     "pushpull",
     "rubocop",
     "subchord",
     "submenu",
+    "ungroup",
     "yieldparam",
     "yieldreturn"
   ],
@@ -34,5 +38,8 @@
   "cSpell.enableFiletypes": [
     "ruby"
   ],
-  "files.eol": "\r\n"
+  "files.eol": "\n",
+  "solargraph.formatting": true,
+  "solargraph.useBundler": true,
+  "ruby.useBundler": true
 }

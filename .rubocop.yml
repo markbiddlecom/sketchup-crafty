@@ -54,6 +54,8 @@ Layout/EmptyLinesAroundModuleBody:
 
 Metrics/ParameterLists:
   Enabled: false
+Metrics/MethodLength:
+  Max: 30
 
 Style/ClassVars:
   Enabled: false # don't tell me what I can't do!

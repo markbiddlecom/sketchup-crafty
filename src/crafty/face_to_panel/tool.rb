@@ -38,7 +38,7 @@ module Crafty
       Crafty::Util.wrap_with_undo('Face to Panel', suppress_undo) do
         group = Sketchup.active_model.active_entities.add_group
         group.name = 'Panel'
-        face = Crafty::Util.clone_face face, group.entities, offset
+        face = Crafty::Util.clone_face_geometry(face, group.entities, offset)
         Crafty::Attributes.tag_primary_face face
         face.pushpull depth
         return group

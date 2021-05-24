@@ -9,4 +9,4 @@ group :development do
   gem 'solargraph' # For code-insight and RuboCop integration with VSCode.
 end
 
-gem "sorted_set", "~> 1.0"
+gem 'sorted_set', '~> 1.0'

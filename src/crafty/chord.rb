@@ -57,7 +57,6 @@ module Crafty
       @button = button
       @keys = Chord.init_keys keys
       @block = block
-      self.enable!
       # TODO: ensure valid input => modifiers? (button | key+)
     end
 
@@ -123,7 +122,7 @@ module Crafty
     # @param button [Integer] the mouse button applicable to the command
     # @return [String] the help message
     def self.create_help_message(help, modifiers, keys, button)
-      mapped_mods = MODIFIERS.map { |m, _idx| [m, MODIFIER_NAMES[i]] }
+      mapped_mods = MODIFIERS.map.with_index { |m, idx| [m, MODIFIER_NAMES[idx]] }
       needed_mods = (mapped_mods.find_all { |(m)| modifiers & m != 0 }).join ' + '
       needed_mods += ' + ' unless needed_mods.empty?
       input = ''

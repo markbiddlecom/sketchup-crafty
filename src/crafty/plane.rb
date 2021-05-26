@@ -7,7 +7,11 @@ module Crafty
   # Adapted from https://github.com/skotekar/flattery/blob/master/flattery/utils.rb
   # Represents the plane given by @normal (dot) x = @distance
   class Plane
-    attr_reader :normal, :distance
+    # @return [Geom::Vector3d] a normalized vector representing the orientation of the plane
+    attr_reader :normal
+
+    # @return [Numeric] the distance between the plane and the origin along the `normal` vector
+    attr_reader :distance
 
     # @param plane_array [Array(Numeric, Numeric, Numeric, Numeric)] the plane defined as four coefficients
     def initialize(plane_array)
@@ -35,35 +39,13 @@ module Crafty
       @base_vector
     end
 
-    # @return [Geom::Transformation] a transformation that will convert a given point on this plane to 2d coordinates
-    #   (coordinates without a z component)
-    def affine_transform
-      if @affine_transform.nil?
-        # https://stackoverflow.com/a/49771112
-        pt_a = ORIGIN.offset @normal, @distance
-        pt_u = pt_a.offset self.unit_vector
-        pt_v = pt_a.offset self.base_vector
-        pt_n = pt_a.offset @normal
-
-        d_matrix = Geom::Transformation.new([0, 1, 0, 0,
-                                             0, 0, 1, 0,
-                                             0, 0, 0, 1,
-                                             1, 1, 1, 1,])
-        s_matrix = Geom::Transformation.new([pt_a.x, pt_u.x, pt_v.x, pt_n.x,
-                                             pt_a.y, pt_u.y, pt_v.y, pt_n.y,
-                                             pt_a.z, pt_u.z, pt_v.z, pt_n.z,
-                                             1,      1,      1,      1,])
-
-        @affine_transform = d_matrix * s_matrix.inverse
-      end
-      @affine_transform
-    end
-
     # @return [Array(Numeric, Numeric, Numeric, Numeric)] this plane defined as four coefficients describing the vector
     #   from the origin and distance along that vector
     def to_a
       [@normal.x, @normal.y, @normal.z, -@distance]
     end
+
+    alias to_plane_array to_a
 
     # @param other [Plane] the plane to test against this plane
     # @return [Boolean] `true` if these planes are parallel and `false` otherwise
@@ -74,12 +56,14 @@ module Crafty
     # @param pt3d [Geom::Point3d] the point whose 2d position along this plane
     # @return [Geom::Point2d]
     def project_2d(pt3d)
-      transformed = self.affine_transform * pt3d
-      Geom::Point2d.new(transformed.x, transformed.y)
+      # https://gamedev.stackexchange.com/questions/172352/finding-texture-coordinates-for-plane
+      v = Geom::Vector3d.new pt3d.to_a
+      Geom::Point2d.new self.unit_vector.dot(v), self.base_vector.dot(v)
     end
 
     # Applies the given transformation to this plane
     # @param transformation [Geom::Transformation] the transformation to apply
+    # @return [Plane] this plane
     def transform!(transformation)
       point = @normal.clone
       point.length = @distance
@@ -93,6 +77,8 @@ module Crafty
 
       @unit = nil
       @base_vector = nil
+
+      self
     end
 
     # @param other [Plane] the desired orientation

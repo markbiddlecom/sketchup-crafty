@@ -6,11 +6,15 @@ require 'crafty/plane.rb'
 
 module Crafty
   module Util
+    # The minimum distance, in inches, between points for them to be considered distinct by the `suggested_scale_factor`
+    # function.
+    MIN_SCALE_SEPARATION = 1e-10
+
     # Utility method to quickly reload the tutorial files. Useful for development.
     # Can be run from Sketchup's ruby console via entering `Crafty::Util.reload`
-    # @return [Integer] Number of files reloaded.
+    # @return [String] a message describing the result of the reload
     def self.reload
-      dir = __dir__.dup
+      dir = Kernel.__dir__.dup
       dir.force_encoding('UTF-8') if dir.respond_to?(:force_encoding)
       pattern = File.join(dir, '**/*.rb')
       old_verbose = $VERBOSE
@@ -30,7 +34,7 @@ module Crafty
     # @param operation_name [String] the text to include in the Undo/Redo history
     # @param suppress [Boolean] set to true to cause the undo operation to be skipped
     # @param block the wrapped code to execute
-    # @return the return value of the block
+    # @return [Object] the return value of the block
     def self.wrap_with_undo(operation_name, suppress = false, &block)
       return block.call if suppress
 
@@ -54,21 +58,6 @@ module Crafty
       (loop.vertices.map { |v| v.position + offset }) + [loop.vertices[0].position + offset]
     end
 
-    # Explodes the given group and then returns a filtered list of entities that were added after the explosion.
-    # @param parent_entities [Sketchup::Entities] the entities list the group is being exploded into.
-    # @param group [Sketchup::Group] the group to explode.
-    # @param block [nil, Proc] an optional block that is used to filter the returned list
-    # @yield [entity] called for each entity from `parent_entities` that is new to that list following the explosion.
-    # @yieldparam entity [Sketchup::Entity] an entity that was added by the explosion.
-    # @yieldreturn [Boolean] `true` to include `entity` in the returned array, and `false` otherwise.
-    # @return [Array<Sketchup::Entity>] the newly added and filtered entities.
-    def self.entities_from_exploded_group(parent_entities, group, &block)
-      block = proc { true } if block.nil?
-      entities_before = parent_entities.to_set
-      group.explode
-      (parent_entities.to_set - entities_before).filter(&block)
-    end
-
     # Determines whether a scaling operation should be applied to the given point set such that all points are
     # sufficiently separated to avoid tolerance-related issues.
     # @param pts [Enumerable<Geom::Point3d>] a set of points to check for proximity
@@ -78,7 +67,7 @@ module Crafty
     def self.suggested_scale_factor(pts, tolerance = TOLERANCE, plane = nil)
       closest_dist = nil
       apply_closest = proc do |d|
-        closest_dist = d if d > 0 && (closest_dist.nil? || d < closest_dist)
+        closest_dist = d if d > MIN_SCALE_SEPARATION && (closest_dist.nil? || d < closest_dist)
       end
 
       pts.each do |p1|
@@ -88,7 +77,7 @@ module Crafty
           next if plane.nil?
 
           # Compare the 2d distance as well as the distance on both the x and y axes
-          p22d = plane.nil? ? nil : plane.project_2d(p2)
+          p22d = plane.project_2d(p2)
           apply_closest.call(p12d.distance(p22d))
           apply_closest.call((p22d.x - p12d.x).abs)
           apply_closest.call((p22d.y - p12d.y).abs)
@@ -100,22 +89,28 @@ module Crafty
       end
     end
 
-    # Returns a set of transformations that can be applied to `pts` before and after an operation such that no two
-    # points are closer than `tolerance` to each other.
-    # @param pts [Enumerable<Geom::Point3d>] a set of points to check for proximity
+    # Returns a list of the polygons within the given mesh and the result of maximizing the `suggested_scale_factor`
+    # across each polygon
+    # @param mesh [Geom::PolygonMesh] the mesh from which to extract and process polygons
     # @param tolerance [Length] the minimum desired distance between any two points in the list
     # @param plane [nil, Crafty::Plane] an optional plane along which point distances are tested
+    # @return [Array(Array<Geom::Point3d>, Numeric)] a tuple containing the list of un-looped polygon points and the
+    #   suggested scale factor. The scale factor will be `nil` if no triangles are below the tolerance threshold.
+    def self.mesh_to_polygons_and_scale_factor(mesh, tolerance = TOLERANCE, plane = nil)
+      polygons = mesh.polygons.map { |polygon| polygon.map { |index| mesh.point_at(index) } }
+      scale_factor = (polygons.map { |polygon| suggested_scale_factor(polygon, tolerance, plane) }).reject(&:nil?).max
+      [polygons, scale_factor]
+    end
+
+    # @param ctr [Geom::Point3d] the center-point for the scaling operation
+    # @param factor [Numeric] the scaling factor to apply
     # @return [Array(Geom::Transformation, Geom::Transformation)] the transformation to apply prior and subsequent to
     #   the operation, respectively.
     #   @note if scaling is not necessary, both transformation's `identity?` method will return `true`.
-    def self.operation_transforms(pts, tolerance = TOLERANCE, plane = nil)
-      factor = suggested_scale_factor(pts, tolerance, plane)
+    def self.operation_transforms(ctr, factor)
       if factor.nil?
         [IDENTITY, IDENTITY]
       else
-        # We could be fancy and try and pick the geometric center of the face, but this'll do fine. Not scaling about
-        # the origin just to improve the debuggability of returned matrices
-        ctr = pts.first
         [Geom::Transformation.scaling(ctr, factor), Geom::Transformation.scaling(ctr, 1 / factor)]
       end
     end
@@ -134,17 +129,12 @@ module Crafty
       # Use the face's mesh to add a bunch of connected polygons (triangles) to the temporary group
       mesh = face.mesh
 
-      # There are two things we need to correct for while working with faces.
-      # 1. Faces can contain vertices that are not coplanar, such as after scaling the face up past its tolerance
-      #    threshold. To fix that, we'll make sure to project points onto the face's plane as we process them.
-      # 2. The tessellated triangles in a face's mesh can be smaller than SketchUp's tolerance threshold for modeling.
-      #    To handle this case, we'll apply a scale factor while we process and reverse that when we ungroup at the end.
-      transform, inverse_transform = operation_transforms(mesh.points, TOLERANCE * 1.1, Plane.new(face.plane))
-      plane = transform * face.plane
-      mesh.polygons.each do |polygon|
-        transformed_points = polygon.map { |index| transform * (mesh.point_at(index) + offset) }
-        projected_points = transformed_points.map { |pt| pt.project_to_plane(plane) }
-        temp_entities.add_face(*projected_points)
+      # The tessellated triangles in a face's mesh can be smaller than SketchUp's tolerance threshold for modeling.
+      # To handle this case, we'll apply a scale factor while we process and reverse that when we ungroup at the end.
+      polygons, scale_factor = mesh_to_polygons_and_scale_factor mesh, TOLERANCE * 1.1, Plane.new(face.plane)
+      transform, inverse_transform = operation_transforms(mesh.points[0], scale_factor)
+      polygons.each do |polygon|
+        temp_entities.add_face(*(polygon.map { |pt| transform * pt }))
       end
 
       # Now we've got a whole bunch of interior edges for the polygons that don't belong on the new face. So we'll
@@ -156,7 +146,9 @@ module Crafty
 
       # Restore the original scale of the group points and explode it to drop all the faces into the desired entity list
       temp_group.transform! inverse_transform unless inverse_transform.identity?
-      entities_from_exploded_group(entities, temp_group) { |entity| entity.is_a? Sketchup::Face }
+      temp_group.transform! Geom::Transformation.translation(offset) unless offset.length == 0
+      result = temp_group.explode
+      result == false ? [] : result.grep(Sketchup::Face)
     end
 
     # @param input [nil, String, Array<String>, Object, Array<Object>]

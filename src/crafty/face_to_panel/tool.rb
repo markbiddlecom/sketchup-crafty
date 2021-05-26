@@ -32,15 +32,17 @@ module Crafty
     # @param suppress_undo [Boolean] set to `true` to disable this command being wrapped in an operation
     # @return [Sketchup::Group, nil] the group containing the cloned and extruded face, or `nil` if the operation
     #   couldn't complete
-    def self.apply(face, depth, offset, suppress_undo = false)
+    def self.apply(face, _depth, offset, suppress_undo = false)
       return nil if face.nil?
 
       Crafty::Util.wrap_with_undo('Face to Panel', suppress_undo) do
         group = Sketchup.active_model.active_entities.add_group
         group.name = 'Panel'
-        face = Crafty::Util.clone_face_geometry(face, group.entities, offset)
-        Crafty::Attributes.tag_primary_face face
-        face.pushpull depth
+        faces = Crafty::Util.clone_face_geometry(face, group.entities, offset)
+        faces.each { |cloned_face|
+          Crafty::Attributes.tag_primary_face cloned_face
+          # cloned_face.pushpull depth
+        }
         return group
       end
     end

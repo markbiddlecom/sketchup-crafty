@@ -23,7 +23,7 @@ module Crafty
     # @param attribute_name [String] the attribute to set
     # @param value the attribute's value
     def self.set_attribute(entity, attribute_name, value)
-      entity.set_attribute entity, attribute_name, value
+      entity.set_attribute CRAFTY_DICTIONARY_NAME, attribute_name, value
     end
 
     # Determines whether the given entity has an attribute in the Crafty dictionary with the given name

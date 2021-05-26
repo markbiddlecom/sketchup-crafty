@@ -12,10 +12,12 @@ module Crafty
         UI.beep
         Sketchup.active_model.active_view.tooltip = 'Please select at least one edge first'
       else
-        Sketchup.active_model.select_tool DefinePlanePt1.new(
-            edges,
-            Geom::BoundingBox.new.add(edges.map(&:bounds)).center
-          )
+        Sketchup.active_model.select_tool(ToolStateMachine::Tool.new {
+          DefinePlanePt1.new(
+              edges,
+              Geom::BoundingBox.new.add(edges.map(&:bounds)).center
+            )
+        })
       end
     end
 

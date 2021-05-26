@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'crafty/chord.rb'
 require 'crafty/consts.rb'
 require 'crafty/util.rb'

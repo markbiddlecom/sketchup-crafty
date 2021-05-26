@@ -14,21 +14,21 @@ module Crafty
     # @param pts [Enumerable<Geom::Point3d>] a set of points to check for proximity
     # @param tolerance [Length] the minimum desired distance between any two points in the list
     # @param plane [nil, Crafty::Plane] an optional plane along which point distances are tested
-    # @return [nil, Numeric] the suggested scale factor to apply, or `nil` if scaling is not necessary
+    # @return [Float, nil] the suggested scale factor to apply, or `nil` if scaling is not necessary
     def self.suggested_scale_factor(pts, tolerance = TOLERANCE, plane = nil)
       closest_dist = nil
       apply_closest = proc do |d|
         closest_dist = d if d > MIN_SCALE_SEPARATION && (closest_dist.nil? || d < closest_dist)
       end
 
-      pts.each do |p1|
-        p12d = plane.nil? ? nil : plane.project_2d(p1)
-        pts.each do |p2|
+      pts.each_entry do |p1|
+        p12d = plane&.project_2d(p1)
+        pts.each_entry do |p2|
           apply_closest.call(p1.distance(p2).to_f)
           next if plane.nil?
 
           # Compare the 2d distance as well as the distance on both the x and y axes
-          p22d = plane.project_2d(p2)
+          p22d = plane&.project_2d(p2)
           apply_closest.call(p12d.distance(p22d))
           apply_closest.call((p22d.x - p12d.x).abs)
           apply_closest.call((p22d.y - p12d.y).abs)

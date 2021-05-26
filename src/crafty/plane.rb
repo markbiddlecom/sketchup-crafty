@@ -25,7 +25,7 @@ module Crafty
       if @unit.nil?
         sketch_plane_up = Geom::Vector3d.new(1, 0, 0)
         transform = XZ_PLANE.transformation_to(self)
-        @unit = transform * sketch_plane_up
+        @unit = Geom::Vector3d.new(transform * sketch_plane_up)
       end
       @unit
     end
@@ -44,8 +44,6 @@ module Crafty
     def to_a
       [@normal.x, @normal.y, @normal.z, -@distance]
     end
-
-    alias to_plane_array to_a
 
     # @param other [Plane] the plane to test against this plane
     # @return [Boolean] `true` if these planes are parallel and `false` otherwise

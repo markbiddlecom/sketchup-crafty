@@ -1,4 +1,4 @@
-require 'sketchup.rb'
+# frozen_string_literal: true
 
 module Crafty
   module ProjectToPlane

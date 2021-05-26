@@ -10,6 +10,7 @@
     "Sketchup",
     "Sketchup's",
     "Trimble",
+    "UI's",
     "antimodifiers",
     "chordset",
     "consts",
@@ -26,8 +27,10 @@
     "polyline",
     "pushpull",
     "rubocop",
+    "solargraph",
     "subchord",
     "submenu",
+    "typecheck",
     "ungroup",
     "yieldparam",
     "yieldreturn"
@@ -41,5 +44,6 @@
   "files.eol": "\n",
   "solargraph.formatting": true,
   "solargraph.useBundler": true,
-  "ruby.useBundler": true
+  "ruby.useBundler": true,
+  "solargraph.diagnostics": true
 }

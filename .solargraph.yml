@@ -1,9 +1,10 @@
-require_paths:
-- "C:\\Program Files\\SketchUp\\SketchUp 2021\\Tools"
-- src
+include:
+- "src/**/*.rb"
 
 require:
 - sketchup-api-stubs
+- set
 
 reporters:
 - rubocop
+- typecheck:typed

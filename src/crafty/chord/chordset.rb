@@ -41,7 +41,7 @@ module Crafty
       def disable!(command); end
 
       # @param keycode [Numeric] the ID of the key that was depressed
-      # @return [Boolean] `true` if any chords changed state, and `false` otherwise
+      # @return [void]
       def on_keydown(keycode)
         modifier = self.keycode_to_modifier keycode
         if modifier.nil?
@@ -53,23 +53,35 @@ module Crafty
       end
 
       # @param keycode [Numeric] the ID of the key that was released
-      # @return [Boolean] `true` if any chords changed state, and `false` otherwise
+      # @return [nil, ToolStateMachine::Mode] the new mode to apply to the calling tool, or `nil` to indicate no change
+      #   is needed
       def on_keyup(keycode)
         modifier = self.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
-          self.apply_state @state.accept_keyup(key, @current_modifiers, self)
+          result = @state.accept_keyup(key, @current_modifiers, self)
+          # @type [ChordsetState]
+          new_state = result[0]
+          # @type [ToolStateMachine::Mode]
+          new_mode = result[1]
+          self.apply_state new_state
+          new_mode
         else
           self.modifier_up modifier
+          nil
         end
       end
 
       # @param button [Numeric] the ID of the button that was clicked.
       #   @see #{Crafty::Chord.LBUTTON}
       #   @see #{Crafty::Chord.RBUTTON}
-      # @return [Boolean] `true` if the reachable chords changed state, and `false` otherwise
-      def on_click(button)
-        self.apply_state @state.accept_click(button, @current_modifiers, self)
+      # @param point [Geom::Point2d] the point where the user clicked the button
+      # @return [nil, ToolStateMachine::Mode] the new mode to apply to the calling tool, or `nil` to indicate no change
+      #   is needed
+      def on_click(button, point)
+        new_state, new_mode = @state.accept_click(button, point, @current_modifiers, self)
+        self.apply_state new_state
+        new_mode
       end
 
       # @param chordset [Chordset] the chordset to associate the chords with
@@ -106,31 +118,28 @@ module Crafty
       private
 
       # @param new_state [ChordsetState] the state to apply
-      # @return [Boolean] whether the state actually changed
+      # @return [void]
       def apply_state(new_state)
         if new_state != @state
           @state = new_state
-          true
-        else
-          false
         end
       end
 
       # @param modifier [Integer] the modifier that was depressed
-      # @return [Boolean] whether any state changes occurred
+      # @return [void]
       def modifier_down(modifier)
         @current_modifiers |= modifier
         self.trigger_modifier_change
       end
 
       # @param modifier [Integer] the modifier that was released
-      # @return [Boolean] whether any state changes occurred
+      # @return [void]
       def modifier_up(modifier)
         @current_modifiers &= ~modifier
         self.trigger_modifier_change
       end
 
-      # @return [Boolean] whether any state changes occurred
+      # @return [void]
       def trigger_modifier_change
         self.apply_state @state.accept_modifier_change @current_modifiers, self
       end

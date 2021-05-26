@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/chord/chordset.rb'
-
 module Crafty
   module ToolStateMachine
     class Mode
       EMPTY_CHORDSET = Crafty::Chords::Chordset.new
+      # @type [Array(Boolean, String, String)]
       NULL_VCB_STATE = [false, '', ''].freeze
       CLICK_SLOP_DISTANCE = 5
 
@@ -15,8 +13,8 @@ module Crafty
         EMPTY_CHORDSET
       end
 
-      # @return [Boolean] `true` if the tool should invoke {#on_return} when a simple left-click is detected, and
-      #   `false` if it should invoke {#on_l_click} instead.
+      # @return [Boolean] `true` if the tool should invoke {#on_return} when a simple left-click is detected, instead of
+      #   forwarding the command to the mode's chordset
       def return_on_l_click
         false
       end
@@ -54,13 +52,6 @@ module Crafty
       # @param tool [Tool]
       # @param view [Sketchup::View]
       # @return [Mode] the mode for the next operation
-      def on_l_click(_tool, _flags, _x, _y, _view)
-        self
-      end
-
-      # @param tool [Tool]
-      # @param view [Sketchup::View]
-      # @return [Mode] the mode for the next operation
       def on_return(_tool, _view)
         self
       end
@@ -79,6 +70,15 @@ module Crafty
       def draw(_tool, _view)
         false
       end
+    end # class Mode
+
+    class EndOfOperation < Mode
+    end # class EndOfOperation
+
+    class Mode
+      # A special mode state that indicates a tool should be deactivated
+      # @type [Mode]
+      END_OF_OPERATION = EndOfOperation.new.freeze
     end # class Mode
   end # module ToolStateMachine
 end # module Crafty

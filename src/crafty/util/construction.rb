@@ -1,13 +1,9 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/consts.rb'
-require 'crafty/plane.rb'
-
 module Crafty
   module Util
     # The minimum distance between points for them to be considered distinct by the `suggested_scale_factor` function.
-    MIN_SCALE_SEPARATION = 1e-10.in
+    MIN_SCALE_SEPARATION = 1e-10.inch
 
     # Determines whether a scaling operation should be applied to the given point set such that all points are
     # sufficiently separated to avoid tolerance-related issues.

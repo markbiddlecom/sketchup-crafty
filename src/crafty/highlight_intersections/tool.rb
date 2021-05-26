@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/chord.rb'
-require 'crafty/util.rb'
+require 'crafty/highlight_intersections/choose.rb'
 
 module Crafty
   module HighlightIntersections
@@ -46,19 +44,19 @@ module Crafty
     end
 
     module EventHandlers
-      CHORDSET = Crafty::Chordset.new(
+      CHORDSET = Crafty::Chords::Chordset.new(
           {
             cmd: :select_primary,
             help: 'change primary solid',
-            trigger: Crafty::Chord::LBUTTON,
-            on_trigger: Crafty::Chord.event_handler { |_, e| on_select_primary(e.x, e.y) },
+            trigger: Crafty::Chords::Chord::LBUTTON,
+            on_trigger: Crafty::Chords::Chord.event_handler { |_, e| on_select_primary(e.x, e.y) },
           },
           {
             cmd: :change_secondary,
             help: 'toggle an intersecting group',
-            modifiers: Crafty::Chord::CTRL_CMD,
-            trigger: Crafty::Chord::LBUTTON,
-            on_trigger: Crafty::Chord.event_handler { |_, e| on_select_secondary(e) },
+            modifiers: Crafty::Chords::Chord::CTRL_CMD,
+            trigger: Crafty::Chords::Chord::LBUTTON,
+            on_trigger: Crafty::Chords::Chord.event_handler { |_, e| on_select_secondary(e) },
           }
         )
 
@@ -66,7 +64,8 @@ module Crafty
       # @param y [Numeric] the y-coordinate of the click
       def self.on_select_primary(x, y); end
 
-      # @param event [Crafty::ClickEnactEvent, Crafty::DragEnactEvent] an event describing the cause of the event
+      # @param event [Crafty::Chords::ClickEnactEvent, Crafty::Chords::DragEnactEvent] an event describing the cause of
+      #   the event
       def self.on_select_secondary(event); end
     end # module EventHandlers
 

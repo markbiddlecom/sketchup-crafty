@@ -1,17 +1,13 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/chord.rb'
-require 'crafty/tool_state_machine/tool_life_cycle.rb'
-
 module Crafty
   module ToolStateMachine
     class Tool
       # @return [Proc] a block that returns the initial [Mode] for the tool.
-      attr :activator
+      attr_accessor :activator
 
       # @return [Geom::BoundingBox] the bounding box containing the points of interest to the tool
-      attr :bounds
+      attr_accessor :bounds
 
       # @yield [] a block that is called whenever the tool is activated
       # @yieldreturn [Mode] the initial state for the tool
@@ -28,10 +24,15 @@ module Crafty
       # @param mode [Mode]
       # @param view [Sketchup::View]
       def apply_mode(mode, view = Sketchup.active_model.active_view)
-        if mode != @mode
+        if !mode.nil? && mode != @mode
           @mode.deactivate_mode self, mode, view unless @mode.nil?
           mode.activate_mode self, @mode, view
           @mode = mode
+
+          if mode == Mode::END_OF_OPERATION
+            Sketchup.active_model.select_tool nil
+            return
+          end
         end
         self.update_ui
       end
@@ -43,7 +44,7 @@ module Crafty
           Sketchup.vcb_label = @vcb_mode[1]
           Sketchup.vcb_value = @vcb_mode[2]
         end
-        new_status = @mode.status
+        new_status = [@mode.status, @mode.chordset.status].reject(&:nil?).reject(&:empty?).join(' === ')
         if force || new_status != @status_text
           @status_text = new_status
           Sketchup.status_text = new_status

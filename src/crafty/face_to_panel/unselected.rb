@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/tool_state_machine.rb'
-require 'crafty/face_to_panel/tool.rb'
-require 'crafty/face_to_panel/unselected.rb'
-
 module Crafty
   module FaceToPanel
     class Unselected < Crafty::ToolStateMachine::Mode

@@ -1,12 +1,8 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/attributes.rb'
-require 'crafty/consts.rb'
-require 'crafty/tool_state_machine.rb'
-require 'crafty/util.rb'
-require 'crafty/face_to_panel/unselected.rb'
 require 'crafty/face_to_panel/selected.rb'
+require 'crafty/face_to_panel/targeting.rb'
+require 'crafty/face_to_panel/unselected.rb'
 
 module Crafty
   module FaceToPanel

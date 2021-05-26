@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/chord.rb'
-require 'crafty/util.rb'
-
 module Crafty
   module HighlightIntersections
     class Choose < Crafty::ToolStateMachine::Mode

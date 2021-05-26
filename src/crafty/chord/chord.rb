@@ -51,11 +51,11 @@ module Crafty
         @chordset = chordset
         @cmd = cmd
         @help = help
-        @help_message = Chord.create_help_message help, modifiers, keys, button
         @modifiers = modifiers.nil? ? 0 : modifiers
         @antimodifiers = ~@modifiers
         @button = button
         @keys = Chord.init_keys keys
+        @help_message = Chord.create_help_message help, modifiers, @keys, button
         @block = block
         # TODO: ensure valid input => modifiers? (button | key+)
       end
@@ -80,7 +80,7 @@ module Crafty
       attr_reader :help_message
 
       # @return [Boolean] whether this command is allowed to be enacted
-      attr :enabled?
+      attr :enabled
 
       # @param cur_modifiers [Integer] the currently activated modifier keys
       # @param downkeys [Enumerable<String>] the currently depressed (non-modifier) keys

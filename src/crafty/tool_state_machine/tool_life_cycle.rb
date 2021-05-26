@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/tool_state_machine/tool.rb'
-
 module Crafty
   module ToolStateMachine
     class Tool
@@ -55,16 +52,15 @@ module Crafty
       end
 
       # @param view [Sketchup::View]
-      def onLButtonUp(flags, x, y, view)
+      def onLButtonUp(_flags, x, y, view)
         unless @lbutton_down.nil?
           cur_pt = Geom::Point2d.new x, y
           if cur_pt.distance(@lbutton_down) <= Mode::CLICK_SLOP_DISTANCE
             if @mode.return_on_l_click
               self.apply_mode (@mode.on_return self, view), view
             else
-              self.apply_mode (@mode.on_l_click self, flags, dx, dy, view), view
+              self.apply_mode @mode.chordset.on_click(Crafty::Chords::Chord::LBUTTON, @lbutton_down)
             end
-            self.apply_mode @mode.chordset.on_click(Crafty::Chords::Chord::LBUTTON)
           end
         end
         @lbutton_down = nil
@@ -75,7 +71,7 @@ module Crafty
         unless @rbutton_down.nil?
           cur_pt = Geom::Point2d.new x, y
           if cur_pt.distance(@lbutton_down) <= Mode::CLICK_SLOP_DISTANCE
-            @mode.chordset.on_click(Crafty::Chords::Chord::RBUTTON)
+            self.apply_mode @mode.chordset.on_click(Crafty::Chords::Chord::RBUTTON, @rbutton_down)
           end
         end
         @rbutton_down = nil
@@ -89,8 +85,11 @@ module Crafty
           down_pos = @lbutton_down || @rbutton_down
           cur_pt = Geom::Point2d.new x, y
           if cur_pt.distance(down_pos) > Mode::CLICK_SLOP_DISTANCE
-            @drag_rect = Geom::Bounds2d.new
+            @drag_rect = Util.bounds_from_pts down_pos, cur_pt
+          else
+            @drag_rect = nil
           end
+          view.invalidate
         end
       end
 

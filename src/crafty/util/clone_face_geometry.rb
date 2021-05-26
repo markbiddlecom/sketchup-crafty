@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
-require 'crafty/consts.rb'
-require 'crafty/plane.rb'
-
 module Crafty
   module Util
     # Copies the edges and faces for the given face element to the given entity list.

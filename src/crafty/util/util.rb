@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require 'crafty/util/clone_face_geometry.rb'
-require 'crafty/util/construction.rb'
-require 'crafty/util/cycle.rb'
-require 'crafty/util/geom.rb'
-
 module Crafty
   module Util
     # Utility method to quickly reload the tutorial files. Useful for development.
@@ -13,18 +8,20 @@ module Crafty
     def self.reload
       dir = Kernel.__dir__.dup
       dir.force_encoding('UTF-8') if dir.respond_to?(:force_encoding)
-      pattern = File.join(dir, '**/*.rb')
+      pattern = File.join(dir, '../**/*.rb')
       old_verbose = $VERBOSE
       "Loaded #{
         (
-          Dir.glob(pattern).each do |file|
+          Dir.glob(pattern).map do |file|
             $VERBOSE = nil
             # Cannot use `Sketchup.load` because its an alias for `Sketchup.require`.
+            puts "Reloading #{file}"
             load file
+            1
           ensure
             $VERBOSE = old_verbose
           end
-        ).size} file(s)"
+        ).sum} file(s)"
     end
 
     # @param receiver [Object] the object that will receive method calls

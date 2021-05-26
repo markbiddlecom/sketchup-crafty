@@ -178,10 +178,7 @@ module Crafty
     # @param x_end [Numeric] the x-coordinate where the user ended dragging
     # @param y_end [Numeric] the y-coordinate where the user ended dragging
     def initialize(x_start, y_start, x_end, y_end)
-      @bounds = Geom::Bounds2d.new(
-          [x_start, x_end].min, [y_start, y_end].min,
-          (x_end - x_start).abs, (y_end - y_start).abs
-        )
+      @bounds = Util.bounds_from_pts x_start, y_start, x_end, y_end
       @direction = x_end >= x_start ? :left_to_right : :right_to_left
     end
 
@@ -203,8 +200,6 @@ module Crafty
     # @options chords [Proc] :on_trigger the code to execute when the command is triggered
     def initialize(*chords)
       @chords = Chordset.chords_from_hashes self, chords
-      @current_modifiers = 0
-      @state = ChordsetState::Idle.new
     end
 
     # @return [Integer] a bitwise combination of the modifiers that are currently depressed
@@ -215,7 +210,14 @@ module Crafty
 
     # @return [String] a string including all of the chords that are currently reachable
     def status
-      @chords.find_all(&:reachable?).map(&:help_message).join('; ')
+      @chords.find_all(&:reachable?).map(&:help_message).join(' // ')
+    end
+
+    # @return [Chordset] this chordset
+    def reset!
+      @current_modifiers = 0
+      @state = ChordsetState::Idle.new
+      self
     end
 
     # @param command [Symbol] the ID of the command to enable

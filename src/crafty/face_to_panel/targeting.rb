@@ -34,7 +34,8 @@ module Crafty
 
       def activate_mode(tool, _old_mode, view)
         Sketchup.vcb_label = 'Distance'
-        @input_pt = Sketchup::InputPoint.new @face.bounds.center
+        @anchor_pt = Sketchup::InputPoint.new @face.bounds.center
+        @input_pt = Sketchup::InputPoint.new @anchor_pt
 
         center_screen_pos = view.screen_coords @face.bounds.center
         @input_pt.pick view, center_screen_pos.x, center_screen_pos.y

@@ -2,6 +2,9 @@
 
 module Crafty
   module Util
+    # @type [Hash]
+    @@keymap = nil
+
     # Converts the given keycode to the string representation for the current platform
     # @param keycode [Integer] the OS keycode provided
     # @return [String] the character of special key represented by the keycode, or the result of `keycode.to_s` if the

@@ -44,7 +44,7 @@ module Crafty
           Sketchup.vcb_label = @vcb_mode[1]
           Sketchup.vcb_value = @vcb_mode[2]
         end
-        new_status = [@mode.status, @mode.chordset.status].reject(&:nil?).reject(&:empty?).join(' === ')
+        new_status = [@mode.status, @mode.chordset.status].reject(&:nil?).reject(&:empty?).join('    |||    ')
         if force || new_status != @status_text
           @status_text = new_status
           Sketchup.status_text = new_status

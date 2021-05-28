@@ -12,6 +12,7 @@ module Crafty
       # @options chords [Proc] :on_trigger the code to execute when the command is triggered
       def initialize(*chords)
         @chords = Chordset.chords_from_hashes self, chords
+        self.reset!
       end
 
       # @return [Integer] a bitwise combination of the modifiers that are currently depressed
@@ -22,9 +23,7 @@ module Crafty
 
       # @return [String] a string including all of the chords that are currently reachable
       def status
-        # @type [Array<String>]
-        help_messages = @chords.find_all(&:reachable?).map(&:help_message)
-        help_messages.join(' // ')
+        @state.reachable_chords(self).map(&:help_message).join('       ')
       end
 
       # @return [Chordset] this chordset
@@ -43,7 +42,7 @@ module Crafty
       # @param keycode [Numeric] the ID of the key that was depressed
       # @return [void]
       def on_keydown(keycode)
-        modifier = self.keycode_to_modifier keycode
+        modifier = Chordset.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
           self.apply_state @state.accept_keydown(key, @current_modifiers, self)

@@ -2,26 +2,37 @@
 
 module Crafty
   module ProjectToPlane
-    class DefinePlanePt1 < ToolStateMachine::Mode
-      # @param selection [Enumerable<Sketchup::Entity>]
-      # @param center_point [Geom::Point3d] the point that represents the center of the selection to project
-      def initialize(selection, center_point)
-        @selection = selection
-        @center_point = center_point
+
+    class DefinePlanePoint < ToolStateMachine::Mode
+      # @return [Sketchup::InputPoint]
+      attr_accessor :inference_point, :input_pt
+
+      # @return [Geom::Vector3d]
+      attr_accessor :vector
+
+      # @return [Enumerable<Sketchup::Entity>]
+      attr_accessor :selection
+
+      def activate_mode(tool, _old_mode, view)
         @chordset = Chords::Chordset.new(
-            {
-              cmd: :switch,
-              help: 'Define Plane With Face',
-              trigger: Chords::Chord::TAB,
-              on_trigger: Util.method_ref(self, :on_switch),
-            },
-            {
-              cmd: :select,
-              help: 'Select Plane Origin Point',
-              trigger: Chords::Chord::LBUTTON,
-              on_trigger: Util.method_ref(self, :on_select),
-            }
-          )
+          {
+            cmd: :switch,
+            help: 'Define Plane With Face',
+            trigger: Chords::Chord::TAB,
+            on_trigger: Util.method_ref(self, :on_switch),
+          },
+          {
+            cmd: :select,
+            help: 'Select Point',
+            trigger: Chords::Chord::LBUTTON,
+            on_trigger: Util.method_ref(self, :on_select),
+          }
+        )
+        @anchor_pt = Sketchup::InputPoint.new @center_point
+        @input_pt = Sketchup::InputPoint.new @center_point
+        @vector = nil
+        tool.bounds.clear.add(@center_point)
+        view.invalidate
       end
 
       # @param event [Chords::ClickEnactEvent] details about the event
@@ -37,13 +48,22 @@ module Crafty
       def on_switch(_chord, event)
         event.new_mode = SelectFace.new(@selection, self)
       end
+    end # class DefinePlanePoint
 
-      def activate_mode(tool, _old_mode, view)
-        @anchor_pt = Sketchup::InputPoint.new @center_point
-        @input_pt = Sketchup::InputPoint.new @anchor_pt
-        @vector = nil
-        tool.bounds.clear.add(@center_point)
-        view.invalidate
+    class DefinePlanePt1 < DefinePlanePoint
+      # @param selection [Enumerable<Sketchup::Entity>]
+      # @param center_point [Geom::Point3d] the point that represents the center of the selection to project
+      def initialize(selection, center_point)
+        @selection = selection
+        @center_point = center_point
+      end
+
+      def status
+        'Select the first point defining the plane'
+      end
+
+      def chordset
+        @chordset
       end
 
       def vcb
@@ -55,7 +75,7 @@ module Crafty
       end
 
       def on_mouse_move(tool, _flags, x, y, view)
-        if @input_pt.pick view, x, y, nil
+        if @input_pt.pick view, x, y, @anchor_pt
           tool.bounds.add(@input_pt.position)
           @vector = @center_point.vector_to @input_pt.position
         else
@@ -66,6 +86,8 @@ module Crafty
       end
 
       def draw(_tool, view)
+        view.draw_points(@center_point, size = 12, style = 2, color = 'blue')
+        @anchor_pt.draw view
         @input_pt.draw view
         true
       end

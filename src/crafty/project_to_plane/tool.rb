@@ -8,10 +8,16 @@ module Crafty
     # Initializes the projection tool
     def self.start_tool
       edges = Sketchup.active_model.selection.grep(Sketchup::Edge)
-      if edges.empty?
+      faces = Sketchup.active_model.selection.grep(Sketchup::Face)
+      if edges.empty? && faces.empty?
         UI.beep
         Sketchup.active_model.active_view.tooltip = 'Please select at least one edge first'
       else
+        if edges.empty? && !faces.empty?
+          edges = faces.flat_map(&:edges)
+          Sketchup.active_model.selection.add(edges)
+        end
+
         Sketchup.active_model.select_tool(ToolStateMachine::Tool.new {
           DefinePlanePt1.new(
               edges,

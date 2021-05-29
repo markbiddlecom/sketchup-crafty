@@ -56,6 +56,7 @@ module Crafty
         @button = button
         @keys = Chord.init_keys keys
         @help_message = Chord.create_help_message help, modifiers, @keys, button
+        @enabled = true
         @block = block
         # TODO: ensure valid input => modifiers? (button | key+)
       end

@@ -55,7 +55,7 @@ module Crafty
             # downkeys doesn't contain any keys not expected by the chord
             if chord.keys.length > sequence_index
               sequence_keys = chord.keys[sequence_index].to_set
-              break downkeys.all? { |key| sequence_keys.include? key }
+              yield downkeys.all? { |key| sequence_keys.include? key }
             end
           end
           false

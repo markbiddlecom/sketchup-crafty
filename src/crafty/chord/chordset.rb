@@ -55,7 +55,7 @@ module Crafty
       # @return [nil, ToolStateMachine::Mode] the new mode to apply to the calling tool, or `nil` to indicate no change
       #   is needed
       def on_keyup(keycode)
-        modifier = self.keycode_to_modifier keycode
+        modifier = Chordset.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
           result = @state.accept_keyup(key, @current_modifiers, self)

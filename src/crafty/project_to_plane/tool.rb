@@ -19,10 +19,7 @@ module Crafty
         end
 
         Sketchup.active_model.select_tool(ToolStateMachine::Tool.new {
-          DefinePlanePt1.new(
-              edges,
-              Geom::BoundingBox.new.add(edges.map(&:bounds)).center
-            )
+          Pt1.new edges, Geom::BoundingBox.new.add(edges.map(&:bounds)).center
         })
       end
     end

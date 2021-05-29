@@ -9,6 +9,9 @@ module Crafty
       # @return [Geom::BoundingBox] the bounding box containing the points of interest to the tool
       attr_accessor :bounds
 
+      # @return [Array]
+      attr_accessor :vcb_mode
+
       # @yield [] a block that is called whenever the tool is activated
       # @yieldreturn [Mode] the initial state for the tool
       def initialize(&activator)

@@ -9,8 +9,9 @@ module Crafty
         @bounds
       end
 
+      # @return [Boolean] whether or not the measurement box should accept user input
       def enableVCB?
-        @vcb_mode[0]
+        self.vcb_mode[0]
       end
 
       # Called by Sketchup when the tool is activated for the first time.

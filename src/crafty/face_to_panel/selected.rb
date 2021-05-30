@@ -10,12 +10,17 @@ module Crafty
         @face = face
       end
 
+      # @return [String]
       def status
-        @status_text
+        'Select a point to indicate panel thickness'
       end
 
-      def enable_vcb?
-        true
+      def vcb
+        if @vector.nil?
+          [false, 'Thickness', '']
+        else
+          [true, 'Thickness', @vector.length]
+        end
       end
 
       def return_on_l_click
@@ -23,35 +28,37 @@ module Crafty
       end
 
       def activate_mode(tool, _old_mode, view)
-        self.set_thickness tool, view, @@last_thickness
-        @input_pt = Sketchup::InputPoint.new @face.bounds.center
+        ctr = @face.bounds.center
+        pt2 = ctr
+        if @@last_thickness.nil?
+          @vector = nil
+        else
+          pt2 = ctr.offset(@face.normal, @@last_thickness)
+          @vector = ctr.vector_to pt2
+        end
+        @inference_ip = Sketchup::InputPoint.new ctr
+        @thickness_ip = Sketchup::InputPoint.new pt2
 
-        center_screen_pos = view.screen_coords @face.bounds.center
-        @input_pt.pick view, center_screen_pos.x, center_screen_pos.y
+        self.apply_bounds(tool)
 
-        tool.get_bounds.clear.add @face.bounds
-        tool.get_bounds.add @input_pt.position unless @input_pt.position.nil?
-
-        Sketchup.vcb_label = 'Panel thickness'
+        view.lock_inference @thickness_ip, Sketchup::InputPoint.new(ctr.offset(@vector || @face.normal))
+        view.invalidate
       end
 
       def on_mouse_move(tool, _flags, x, y, view)
-        if @input_pt.pick view, x, y
-          projected_point = @input_pt.position.project_to_line [@face.bounds.center, @face.normal]
-          angle = @face.normal.angle_between(projected_point - @face.bounds.center)
-          self.set_thickness(
-              tool,
-              view,
-              ((angle >= Math::PI ? -1 : 0) * (projected_point.distance @face.bounds.center)).to_l
-            )
+        if @thickness_ip.pick view, x, y, @inference_ip
+          @vector = @face.bounds.center.vector_to @thickness_ip.position
+          self.apply_bounds(tool)
+          view.invalidate
         end
         self
       end
 
       def on_value(tool, text, view)
         thickness = text.to_l
-        thickness = (-1 * thickness).to_l if thickness > 0
-        self.set_thickness tool, view, thickness
+        thickness = (-1 * thickness.to_f).to_l if thickness > 0.to_l
+        @vector = @face.normal
+        @vector.length = thickness.to_f
       rescue ArgumentError
         view.tooltip = 'Invalid thickness'
         UI.beep
@@ -61,50 +68,38 @@ module Crafty
       end
 
       def on_return(_tool, _view)
-        if @cur_thickness.nil? || (@cur_thickness == 0)
+        if @vector.nil? || @vector.length == 0.to_l
           UI.beep
           self
         else
-          @@last_thickness = @cur_thickness
+          @@last_thickness = @vector.length
           Targeting.new @face, @cur_thickness
         end
       end
 
       def draw(_tool, view)
-        FaceToPanel.highlight_face @face, view, 'red', 2
-        view.draw_points @face.bounds.center + self.offset_vector, 10, 1, 'blue'
-        if @cur_thickness.nil? || (@cur_thickness == 0)
-          view.tooltip = @input_pt.tooltip
-        else
-          FaceToPanel.highlight_face @face, view, 'blue', 1, '-', self.offset_vector
-          view.tooltip = "#{@cur_thickness} - #{@input_pt.tooltip}"
+        view.draw_points @face.bounds.center, 10, 1, 'blue'
+        Util.highlight_face @face, view, width: 2
+        unless @vector.nil? || @vector.length == 0.to_l
+          Util.highlight_face @face, view, color: 'blue', stipple: Util::STIPPLE_DASHED, offset: @vector
+          Util.draw_and_restore(view, stipple: Util::STIPPLE_DOTTED) {
+            view.set_color_from_line @face.bounds.center, @thickness_ip.position
+            view.draw_line @face.bounds.center, @thickness_ip.position
+          }
         end
-        @input_pt.draw view
-        true
+        @thickness_ip.draw view
+        @inference_ip.draw view
+        view.tooltip = @thickness_ip.tooltip
       end
 
       private
 
-      # @param tool [Crafty::ToolStateMachine::Tool] the tool to update
-      # @param view [Sketchup::View] the active view
-      # @param thickness [Length, nil] the new value for thickness
-      def set_thickness(tool, view, thickness)
-        if @cur_thickness.nil? || thickness != @cur_thickness
-          @cur_thickness = thickness
-          tool.get_bounds.add @face.bounds.center + self.offset_vector
-          view.invalidate
-          Sketchup.vcb_value = @cur_thickness
-        end
-      end
-
-      # @return [Geom::Vector3d]
-      def offset_vector
-        if @cur_thickness.nil?
-          ZERO_VECTOR
-        else
-          normal = @face.normal.clone
-          normal.length = @cur_thickness
-          normal
+      # @param tool [ToolStateMachine::Tool] the tool whose bounds need to be set
+      # @return [void]
+      def apply_bounds(tool)
+        tool.bounds.clear.add @face.bounds
+        unless @vector.nil?
+          tool.bounds.add @face.bounds.corner(0).offset(@vector), @face.bounds.corner(7).offset(@vector)
         end
       end
     end # class Selected

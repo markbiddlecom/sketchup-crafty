@@ -23,7 +23,7 @@ module Crafty
 
     # Creates a clone of the given face in its own group (within active_entities) and extrudes it to the given depth
     # @param face [Sketchup::Face] the face to clone and extrude
-    # @param depth [Geom::Length] the distance to extrude the face
+    # @param depth [Length] the distance to extrude the face
     # @param offset [Geom::Vector3d] an offset to apply to all the vertices in `face`
     # @param suppress_undo [Boolean] set to `true` to disable this command being wrapped in an operation
     # @return [Sketchup::Group, nil] the group containing the cloned and extruded face, or `nil` if the operation
@@ -36,28 +36,11 @@ module Crafty
         group.name = 'Panel'
         faces = Crafty::Util.clone_face_geometry(face, group.entities, offset)
         faces.each { |cloned_face|
-          Crafty::Attributes.tag_primary_face cloned_face
+          Crafty::Util::Attributes.tag_primary_face cloned_face
           # cloned_face.pushpull depth
         }
         return group
       end
-    end
-
-    # Uses view draw methods to draw a highlight for the given face
-    # @param face [Sketchup::Face] the face to highlight
-    # @param view [Sketchup::View] the view to use for drawing
-    # @param color [String, Sketchup::Color] the color to draw the face in
-    # @param stipple [String] the stipple pattern for the face
-    # @param offset [Geom::Vector3d] an offset for the rendered face
-    def self.highlight_face(face, view, color = 'red', line_width = 5, stipple = '', offset = ZERO_VECTOR)
-      view.drawing_color = color
-      view.line_stipple = stipple
-      view.line_width = line_width
-      view.draw_polyline(Crafty::Util.loop_to_closed_pts(face.outer_loop, offset))
-      view.line_width = [1, line_width - 2].max
-      face.loops[1...face.loops.length].each { |l|
-        view.draw_polyline(Crafty::Util.loop_to_closed_pts(l, offset))
-      }
     end
   end # module FaceToPanel
 end # module Crafty

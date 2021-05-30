@@ -110,7 +110,7 @@ module Crafty
 
       # @param view [Sketchup::View]
       def draw(view)
-        view.invalidate if @mode.draw self, view
+        @mode.draw self, view
       end
 
       # @param view [Sketchup::View]

@@ -35,11 +35,13 @@ module Crafty
       # @param tool [Tool]
       # @param old_mode [nil, Mode]
       # @param view [Sketchup::View]
+      # @return [void]
       def activate_mode(tool, old_mode, view); end
 
       # @param tool [Tool]
       # @param new_mode [Mode]
       # @param view [Sketchup::View]
+      # @return [void]
       def deactivate_mode(tool, new_mode, view); end
 
       # @param tool [Tool]
@@ -66,10 +68,8 @@ module Crafty
 
       # @param tool [Tool]
       # @param view [Sketchup::View]
-      # @param return [Boolean] `true` if the view should be invalidated, and `false` otherwise
-      def draw(_tool, _view)
-        false
-      end
+      # @param return [void]
+      def draw(_tool, _view); end
     end # class Mode
 
     class EndOfOperation < Mode

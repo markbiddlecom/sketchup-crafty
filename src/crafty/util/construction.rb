@@ -61,5 +61,29 @@ module Crafty
         [Geom::Transformation.scaling(ctr, factor), Geom::Transformation.scaling(ctr, 1 / factor)]
       end
     end
+
+    # Creates copies of each of the given entities and adds them to a new group, optionally wrapped within an operation.
+    # @param entities [Sketchup::Entities] the entities collection to which the new group is added
+    # @param entities_to_copy [Array<Sketchup::Entity>] the entities to copy
+    # @param group_name [String] the name of the copied group
+    # @param wrap [Boolean] `true` to wrap the copy within an undo-able operation, and `false` otherwise
+    # @param operation_name [String] the name of the undo operation when `wrap` is `true`
+    # @return [Sketchup::Group] the created group
+    # @see https://github.com/SketchUp/rubocop-sketchup/blob/master/manual/cops_suggestions.md#addgroup
+    def self.unsafe_copy_in_place(entities, *entities_to_copy,
+        group_name: 'Copy', wrap: true, operation_name: 'Copy In Place')
+      wrap_with_undo(operation_name, !wrap) {
+        # rubocop:disable SketchupSuggestions/AddGroup
+        temp_group = entities.add_group(entities_to_copy)
+        # rubocop:enable SketchupSuggestions/AddGroup
+
+        copy_group = temp_group.copy
+        id = copy_group.persistent_id
+        copy_group.name = group_name
+        temp_group.explode
+
+        entities.filter { |e| e.persistent_id == id }.first
+      }
+    end
   end # module Util
 end # module Crafty

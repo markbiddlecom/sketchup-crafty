@@ -78,5 +78,12 @@ module Crafty
         [input.to_s]
       end
     end
+
+    # @param entities [Sketchup::Entities] the list of entities to search
+    # @param persistent_id [Integer] the ID to find
+    # @return [Sketchup::Entity] the matching entity, if found, or `nil` otherwise
+    def self.find_by_persistent_id(entities, persistent_id)
+      entities.filter { |e| e.persistent_id == persistent_id }.first
+    end
   end # module Util
 end # module Crafty

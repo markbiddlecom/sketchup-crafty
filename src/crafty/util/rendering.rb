@@ -25,6 +25,32 @@ module Crafty
       view.drawing_color = 'black'
     end
 
+    # Uses `view` to draw a polyline after closing the given point loop
+    # @param view [Sketchup::View] the view to use for rendering
+    # @param open_gl_num [Integer] describes the intention of the `points` list; see `Sketchup::View.draw`
+    # @param points [Array<Geom::Point3d>] the ordered points describing the polygon's edge
+    # @param color [String, Sketchup::Color] the color of the drawn lines
+    # @param width [Integer] the width of the drawn lines
+    # @param stipple [String] the stipple pattern of the drawn lines
+    # @param offset [Geom::Vector3d] an offset to apply to all of the points
+    # @param overlaid [Boolean] `true` to draw the face in the 2d plane (after mapping vertices), and `false` to draw
+    #   in the 3d view
+    # @param close [Boolean] `true` to draw a final line from the last point in `points` to the first, and `false` to
+    #   draw the points as-is
+    def self.draw(view, open_gl_num, *points,
+        color: 'black', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, overlaid: false, close: false)
+      pts_to_draw =
+          (points + (close ? [points[0]] : [])) # close the loop if requested
+          .map { |pt| pt.offset(offset) } # offset the loop if requested
+      draw_and_restore(view, color: color, width: width, stipple: stipple) {
+        if overlaid
+          view.draw2d(open_gl_num, pts_to_draw.map { |pt| view.screen_coords(pt) })
+        else
+          view.draw(open_gl_num, pts_to_draw)
+        end
+      }
+    end
+
     # Uses view draw methods to draw a highlight for the given face
     # @param face [Sketchup::Face] the face to highlight
     # @param view [Sketchup::View] the view to use for drawing
@@ -32,14 +58,66 @@ module Crafty
     # @param width [Integer] the line width to use when drawing
     # @param stipple [String] the stipple pattern for the face
     # @param offset [Geom::Vector3d] an offset for the rendered face
-    def self.highlight_face(face, view, color: 'red', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR)
-      draw_and_restore(view, color: color, width: width, stipple: stipple) {
-        view.draw_polyline(loop_to_closed_pts(face.outer_loop, offset))
-        view.line_width = [1, width - 2].max
-        face.loops[1...face.loops.length].each { |l|
-          view.draw_polyline(loop_to_closed_pts(l, offset))
-        }
+    # @param overlaid [Boolean] `true` to draw the face in the 2d plane (after mapping vertices), and `false` to draw
+    #   in the 3d view
+    def self.highlight_face(face, view,
+        color: 'red', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, overlaid: false)
+      draw(
+          view,
+          GL_LINE_STRIP,
+          *loop_to_closed_pts(face.outer_loop, offset),
+          color: color, width: width, stipple: stipple, overlaid: overlaid
+        )
+      view.line_width = [1, width - 2].max
+      face.loops[1...face.loops.length].each { |l|
+        draw(
+            view,
+            GL_LINE_STRIP,
+            *loop_to_closed_pts(l, offset),
+            color: color, width: width, stipple: stipple, overlaid: overlaid
+          )
       }
+    end
+
+    # @param bounds [Geom::BoundingBox] the bounds to highlight
+    # @param view [Sketchup::View] the view to use for drawing
+    # @param color [String, Sketchup::Color] the color to draw the bounding box with
+    # @param width [Integer] the line width to use when drawing
+    # @param stipple [String] the stipple pattern for the box's edges
+    # @param offset [Geom::Vector3d] an offset for the rendered box
+    def self.highlight_bounds(bounds, view, color: 'blue', width: 3, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR)
+      x_min, y_min, z_min = bounds.corner(0).offset(offset).to_a
+      x_max, y_max, z_max = bounds.corner(7).offset(offset).to_a
+      # Top square
+      draw(
+          view,
+          GL_LINE_STRIP,
+          Geom::Point3d.new(x_min, y_min, z_max),
+          Geom::Point3d.new(x_max, y_min, z_max),
+          Geom::Point3d.new(x_max, y_max, z_max),
+          Geom::Point3d.new(x_min, y_max, z_max),
+          color: color, width: width, stipple: stipple
+        )
+      # Bottom square
+      draw(
+          view,
+          GL_LINE_STRIP,
+          Geom::Point3d.new(x_min, y_min, z_min),
+          Geom::Point3d.new(x_max, y_min, z_min),
+          Geom::Point3d.new(x_max, y_max, z_min),
+          Geom::Point3d.new(x_min, y_max, z_min),
+          color: color, width: width, stipple: stipple, close: true
+        )
+      # Legs
+      draw(
+          view,
+          GL_LINES,
+          Geom::Point3d.new(x_min, y_min, z_max), Geom::Point3d.new(x_min, y_min, z_min),
+          Geom::Point3d.new(x_max, y_min, z_max), Geom::Point3d.new(x_max, y_min, z_min),
+          Geom::Point3d.new(x_max, y_max, z_max), Geom::Point3d.new(x_max, y_max, z_min),
+          Geom::Point3d.new(x_min, y_max, z_max), Geom::Point3d.new(x_min, y_max, z_min),
+          color: color, width: width, stipple: stipple
+        )
     end
   end # module Util
 end # module Crafty

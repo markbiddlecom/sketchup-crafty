@@ -6,7 +6,9 @@
 require 'crafty/chord.rb'
 require 'crafty/tool_state_machine.rb'
 require 'crafty/util.rb'
+
 require 'crafty/face_to_panel/tool.rb'
+require 'crafty/highlight_intersections/tool.rb'
 require 'crafty/project_to_plane/tool.rb'
 
 module Crafty
@@ -15,6 +17,7 @@ module Crafty
       menu = UI.menu('Plugins')
       submenu = menu.add_submenu('Crafty')
       submenu.add_item('Face To Panel') { Crafty::FaceToPanel.start_tool }
+      submenu.add_item('Highlight Intersections') { Crafty::HighlightIntersections.start_tool }
       submenu.add_item('Project To Plane') { Crafty::ProjectToPlane.start_tool }
       file_loaded(__FILE__)
     end

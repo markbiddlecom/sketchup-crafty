@@ -1,78 +1,66 @@
 # frozen_string_literal: true
 
-require 'crafty/highlight_intersections/choose.rb'
+require 'crafty/highlight_intersections/primary_mode.rb'
 
 module Crafty
   module HighlightIntersections
     # Initializes the highlighting tool
     def self.start_tool
-      selected_solids = Sketchup.active_model.selection.find_all { |e| (e.is_a? Sketchup::Group) and e.manifold? }
-      if selected_solids.length > 1
-        UI.messagebox 'Please select at least two solid groups to use this tool.'
+      selected_solids =
+          Sketchup.active_model
+                  .selection
+                  .find_all { |e|
+                    e.is_a?(Sketchup::Group) &&
+                      e.manifold? &&
+                      Util::Attributes.find_primary_faces(e.entities).length == 1
+                  }
+      if selected_solids.length < 2
+        UI.beep
+        Sketchup.active_model.active_view.tooltip = 'Please select at least two panel solids'
       else
         Sketchup.active_model.selection.clear
-        Sketchup.active_model.selection.add(*selected_solids)
+        Sketchup.active_model.select_tool(ToolStateMachine::Tool.new { PrimaryMode.new(selected_solids) })
       end
     end
 
-    # Returns a group that represents the intersection of the first solid in the given list with the union of the
-    # remaining solids.
-    # @param solids [Enumerable<Sketchup::Group>] the solids to intersect. If any solid is not manifold, it will be
-    #   ignored
-    # @return [nil, Sketchup::Group] the resultant intersection, or `nil` if any of the solids don't overlap
-    def self.find_total_intersection(solids)
-      manifold_solids = self.find_all_manifold_solids solids
-      if manifold_solids.length < 2
-        nil
-      else
-        primary = manifold_solids.first
-        union = manifold_solids[1...manifold_solids.length].reduce do |current_union, solid|
-          current_union.union solid
+    # Determines the areas on the primary solid's primary face that intersect with any of the given solids
+    # @param primary_solid [Sketchup::Group] a manifold solid containing exactly one face marked as primary
+    # @param solids [Array<Sketchup::Group>]
+    # @return [Array<Geom::PolygonMesh>] an array of meshes that represent the intersecting areas of `primary_solid`
+    def self.find_penetrating_faces(primary_solid, solids)
+      primary_face = Util::Attributes.find_primary_faces(primary_solid.entities)[0]
+      raise(StandardError, 'primary_solid does not contain a face marked "primary"') if primary_face.nil?
+
+      solids.flat_map { |solid|
+        primary_copy = primary_solid.copy
+        solid_copy = solid.copy
+        intersection = primary_copy.intersect(solid_copy)
+
+        abutting = []
+        if intersection.nil?
+          abutting = find_abutting_faces(primary_face, intersection)
+        else
+          primary_copy.erase! unless primary_copy.deleted?
+          solid_copy.erase! unless solid_copy.deleted?
+          intersection.erase! unless intersection.deleted?
         end
-        primary.intersect union
-      end
+
+        abutting
+      }
     end
 
-    # @param collection [Enumerable]
-    # @return [Array<Sketchup::Group>] an array of all manifold solid groups within the given collection
-    def self.find_all_manifold_solids(collection)
-      if collection.nil?
-        []
-      else
-        collection.find_all { |e| (e.is_a? Sketchup::Group) and e.manifold? }
-      end
+    # Identifies the faces from the solids list that abut the given face
+    # @param primary_face [Sketchup::Face] the to test against each of the solids
+    # @param solids [Enumerable<Sketchup::Group>] the solids containing the abutting faces
+    # @return [Array<Geom::PolygonMesh>]
+    def self.find_abutting_faces(primary_face, solids)
+      primary_plane = Util::Plane.new(primary_face.plane)
+      solids.flat_map { |solid|
+        solid.entities
+             .grep(Sketchup::Face)
+             .filter { |face| primary_plane == Util::Plane.new(face.plane) }
+             .map(&:mesh)
+      }
     end
-
-    module EventHandlers
-      CHORDSET = Crafty::Chords::Chordset.new(
-          {
-            cmd: :select_primary,
-            help: 'change primary solid',
-            trigger: Crafty::Chords::Chord::LBUTTON,
-            on_trigger: Crafty::Chords::Chord.event_handler { |_, e| on_select_primary(e.x, e.y) },
-          },
-          {
-            cmd: :change_secondary,
-            help: 'toggle an intersecting group',
-            modifiers: Crafty::Chords::Chord::CTRL_CMD,
-            trigger: Crafty::Chords::Chord::LBUTTON,
-            on_trigger: Crafty::Chords::Chord.event_handler { |_, e| on_select_secondary(e) },
-          }
-        )
-
-      # @param x [Numeric] the x-coordinate of the click
-      # @param y [Numeric] the y-coordinate of the click
-      def self.on_select_primary(x, y); end
-
-      # @param event [Crafty::Chords::ClickEnactEvent, Crafty::Chords::DragEnactEvent] an event describing the cause of
-      #   the event
-      def self.on_select_secondary(event); end
-    end # module EventHandlers
-
-    class NoPrimary < Crafty::ToolStateMachine::Mode
-      def initialize
-        EventHandlers::CHORDSET.enable! :cmd
-      end
-    end # class ToolMode
   end # module HighlightIntersections
 end # module Crafty

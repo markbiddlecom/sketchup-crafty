@@ -18,12 +18,8 @@ module Crafty
 
       # The tessellated triangles in a face's mesh can be smaller than SketchUp's tolerance threshold for modeling.
       # To handle this case, we'll apply a scale factor while we process and reverse that when we ungroup at the end.
-      results = mesh_to_polygons_and_scale_factor mesh, TOLERANCE * 1.1, Plane.new(face.plane)
-      polygons = results[0]
-      scale_factor = results[1]
-      results = operation_transforms(mesh.points[0], scale_factor)
-      transform = results[0]
-      inverse_transform = results[1]
+      polygons, scale_factor = mesh_to_polygons_and_scale_factor mesh, TOLERANCE * 1.1, Plane.new(face.plane)
+      transform, inverse_transform = operation_transforms(mesh.points[0], scale_factor)
 
       polygons.each do |polygon|
         temp_entities.add_face(*(polygon.map { |pt| transform * pt }))

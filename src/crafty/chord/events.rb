@@ -8,6 +8,17 @@ module Crafty
       attr_accessor :new_mode
     end # class EnactEvent
 
+    class KeyPressEnactEvent < EnactEvent
+      # @param handled [Boolean] the default state of the `handled` property
+      def initialize(handled: true)
+        @handled = handled
+      end
+
+      # @return [Boolean] `true` (the default) if the input was handled and SketchUp should ignore it; `false` to
+      #   indicate that SketchUp should also process the keypress.
+      attr_accessor :handled
+    end # class KeyPressEnactEvent
+
     class ClickEnactEvent < EnactEvent
       # @param point [Geom::Point2d] the point where the mouse was clicked
       def initialize(point)

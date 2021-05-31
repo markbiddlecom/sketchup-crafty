@@ -3,6 +3,12 @@
 module Crafty
   module Chords
     class Chordset
+      @@debug = false
+
+      def self.debug=(new_value)
+        @@debug = new_value ? true : false
+      end
+
       # @param chords [Array<Hash>] initialization parameters for the chords to track
       # @options chords [Symbol] :cmd the unique symbol for this command
       # @options chords [String] :help the help message to display to users when this chord is available
@@ -40,34 +46,36 @@ module Crafty
       def disable!(command); end
 
       # @param keycode [Numeric] the ID of the key that was depressed
-      # @return [void]
+      # @return [Boolean] `true` if the input was handled, and `false` if SketchUp should process it as well
       def on_keydown(keycode)
         modifier = Chordset.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
-          self.apply_state @state.accept_keydown(key, @current_modifiers, self)
+          handled, new_state = @state.accept_keydown(key, @current_modifiers, self)
+          puts "#{@state}.accept_keydown => [#{handled}, #{new_state}]" if @@debug
+          self.apply_state new_state
+          handled
         else
           self.modifier_down modifier
+          false
         end
       end
 
       # @param keycode [Numeric] the ID of the key that was released
-      # @return [nil, ToolStateMachine::Mode] the new mode to apply to the calling tool, or `nil` to indicate no change
-      #   is needed
+      # @return [Array(Boolean, ToolStateMachine::Mode)] the first array element will be `true` if the input was
+      #   handled, and `false` if SketchUp should process it as well; the second input indicates the new mode to apply
+      #   to the calling tool, or `nil` to indicate no change is needed
       def on_keyup(keycode)
         modifier = Chordset.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
-          result = @state.accept_keyup(key, @current_modifiers, self)
-          # @type [ChordsetState]
-          new_state = result[0]
-          # @type [ToolStateMachine::Mode]
-          new_mode = result[1]
+          handled, new_state, new_mode = @state.accept_keyup(key, @current_modifiers, self)
+          puts "#{@state}.accept_keyup => [#{handled}, #{new_state}]" if @@debug
           self.apply_state new_state
-          new_mode
+          [handled, new_mode]
         else
           self.modifier_up modifier
-          nil
+          [false, nil]
         end
       end
 

@@ -12,8 +12,11 @@ module Crafty
         true
       end
 
-      def activate_mode(tool, _old_mode, _view)
+      def on_resume(tool, view)
         tool.bounds.clear
+        tool.bounds.add @face_to_pick.bounds unless @face_to_pick.nil?
+        view.invalidate
+        self
       end
 
       def on_mouse_move(tool, _flags, x, y, view)
@@ -28,6 +31,7 @@ module Crafty
           view.tooltip = "Face in #{@face_to_pick.parent.respond_to?(:name) ? @face_to_pick.parent.name : 'model'}"
           tool.bounds.clear.add @face_to_pick.bounds
         end
+
         view.invalidate
         self
       end
@@ -44,7 +48,7 @@ module Crafty
 
       def draw(_tool, view)
         unless @face_to_pick.nil?
-          Util.highlight_face @face_to_pick, view
+          Util.highlight_face @face_to_pick, view, width: 5
         end
       end
     end # class Unselected

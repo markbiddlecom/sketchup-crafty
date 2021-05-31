@@ -9,3 +9,6 @@
 #   VK_INSERT = 0
 #   VK_SHIFT = 0
 #   VK_SPACE = 0
+
+# @!parse
+#   def raise; end

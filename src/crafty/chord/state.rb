@@ -29,26 +29,32 @@ module Crafty
       # @param key [String] the key that was depressed
       # @param cur_modifiers [Integer] the current state of modifier keys
       # @param chordset [Chordset] the chordset processing the event
-      # @return [ChordsetState] the new state after processing the key press
+      # @return [Array(Boolean, ChordsetState)] the first array element is `true` if the input was processed, and
+      #   `false` if SketchUp should handle it as well; the second indicates the new state after processing the key
+      #   press
       def accept_keydown(_key, _cur_modifiers, _chordset)
-        self
+        [false, self]
       end
 
       # @param key [String] the key that was released
       # @param cur_modifiers [Integer] the current state of modifier keys
       # @param chordset [Chordset] the chordset processing the event
-      # @return [Array(ChordsetState, ToolStateMachine::Mode)] the new states for the chord and accompanying tool after
-      #   processing the keypress.
+      # @return [Array(Boolean, ChordsetState, ToolStateMachine::Mode)] the first element is `true` if the input was
+      #   processed, and `false` if SketchUp should handle it as well; the second two indicate the new states for the
+      #   chord and accompanying tool after processing the keypress.
       def accept_keyup(_key, _cur_modifiers, _chordset)
-        [self]
+        [false, self, nil]
       end
 
       # @param available_chords [Array<Chord>] the chords that are reachable before filtering
       # @param cur_modifiers [Integer] the current state of the modifier keys
-      # @param downkeys [Array<String>] the currently depressed keys (other than the modifier keys)
+      # @param downkeys [Set<String>] the currently depressed keys (other than the modifier keys)
       # @param sequence_index [Integer] the current sequence index a multi-step chord
-      # @return [ChordsetState] the activated state given the current set of reachable chords
+      # @return [Array(Boolean, ChordsetState)] the first array element is `true` if the input was processed, and
+      #   `false` if SketchUp should handle it as well; the second indicates the new state after processing the key
+      #   press
       def self.key_state_from_downkeys(available_chords, cur_modifiers, downkeys, sequence_index)
+        # @type [Array<Chord>]
         reachable_chords = available_chords.find_all do |chord|
           if chord.enabled && (chord.modifiers == cur_modifiers) && (chord.button == 0)
             # This chord is still reachable if it has a key sequence with the given index and if the current set of
@@ -60,10 +66,10 @@ module Crafty
           end
           false
         end
-        if reachable_chords.length
-          KeychordDown.new downkeys, reachable_chords, sequence_index
+        if !reachable_chords.empty?
+          [true, KeychordDown.new(downkeys, reachable_chords, sequence_index)]
         else
-          DeadEnd.new downkeys
+          [false, DeadEnd.new(downkeys)]
         end
       end
 
@@ -78,6 +84,10 @@ module Crafty
 
         def accept_keydown(key, cur_modifiers, chordset)
           ChordsetState.key_state_from_downkeys chordset.chords, cur_modifiers, [key], 0
+        end
+
+        def to_s
+          '::Idle'
         end
       end # class Idle
 
@@ -103,13 +113,22 @@ module Crafty
           [DeadEnd.new(@downkeys)]
         end
 
-        def accept_keyup(key, _cur_modifiers, _chordset)
+        def accept_keyup(key, cur_modifiers, chordset)
           if @downkeys.include? key
-            @downkeys.delete key
-            [KeychordUp.new(@downkeys, @reachable_chords, @sequence_index)]
+            KeychordUp.new(@downkeys, @reachable_chords, @sequence_index).accept_keyup(key, cur_modifiers, chordset)
           else
-            [DeadEnd.new(@downkeys)]
+            [false, DeadEnd.new(@downkeys), nil]
           end
+        end
+
+        def to_s
+          "::KeychordDown(@#{
+            @sequence_index
+          }, '#{
+              @downkeys.to_a.sort.join('')
+            }', ~> <#{
+                @reachable_chords.map(&:cmd).join(', ')
+              }>)"
         end
       end # class KeychordDown
 
@@ -134,7 +153,7 @@ module Crafty
             if @downkeys.empty?
               # Enact any chords we currently matched
               any_enacted = false
-              event = EnactEvent.new
+              event = KeyPressEnactEvent.new handled: true
               @reachable_chords.each do |chord|
                 # This chord was activated if we have the right modifiers and initial downkeys
                 if chord.enabled && chord.matches?(cur_modifiers, @initial_downkeys, @sequence_index)
@@ -144,13 +163,13 @@ module Crafty
               end
               # If no chords were enacted, we'll wait for a keydown before doing anything. Otherwise, we'll return to
               # the initial state.
-              [any_enacted ? Idle.new : self, event.new_mode]
+              [event.handled, any_enacted ? Idle.new : self, event.new_mode]
             else
-              self
+              [true, Idle.new, nil]
             end
           else
             # We lost track of keys somehow, just fall into the dead end
-            [DeadEnd.new(@downkeys)]
+            [false, DeadEnd.new(@downkeys), nil]
           end
         end
 
@@ -160,8 +179,12 @@ module Crafty
             ChordsetState.key_state_from_downkeys @reachable_chords, cur_modifiers, [key], @sequence_index + 1
           else
             # We're not expecting this, so we'll move to the dead end
-            DeadEnd.new @downkeys + key
+            [false, DeadEnd.new(@downkeys + [key])]
           end
+        end
+
+        def to_s
+          "::KeychordUp(@#{@sequence_index}, '#{@downkeys.to_a.sort.join('')}')"
         end
       end # class KeychordUp
 
@@ -185,12 +208,16 @@ module Crafty
 
         def accept_keydown(key, _cur_modifiers, _chordset)
           @downkeys << key
-          self
+          [false, self]
         end
 
         def accept_keyup(key, cur_modifiers, chordset)
           @downkeys.delete key
-          [self.accept_modifier_change(cur_modifiers, chordset)]
+          [false, self.accept_modifier_change(cur_modifiers, chordset), nil]
+        end
+
+        def to_s
+          '::DeadEnd'
         end
       end # class DeadEnd
     end # class ChordsetState

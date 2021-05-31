@@ -44,6 +44,22 @@ module Crafty
       # @return [void]
       def deactivate_mode(tool, new_mode, view); end
 
+      # @abstract
+      # @param tool [Tool]
+      # @param view [Sketchup::View]
+      # @return [Mode] the mode for the next operation
+      def on_suspend(_tool, _view)
+        self
+      end
+
+      # @abstract
+      # @param tool [Tool]
+      # @param view [Sketchup::View]
+      # @return [Mode] the mode for the next operation
+      def on_resume(_tool, _view)
+        self
+      end
+
       # @param tool [Tool]
       # @param view [Sketchup::View]
       # @return [Mode] the mode for the next operation

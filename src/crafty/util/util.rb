@@ -36,9 +36,7 @@ module Crafty
     # @param block [Proc] the block to call
     # @return [Object]
     def self.call_block(block, *args)
-      # @type [Object]
-      ret = block.call(*args)
-      ret
+      block.call(*args)
     end
 
     # Pushes an undo operation with the given name and executes the block, committing the operation on success.
@@ -54,7 +52,7 @@ module Crafty
         call_block(block)
       rescue StandardError
         Sketchup.active_model.abort_operation
-        raise $ERROR_INFO
+        raise
       else
         Sketchup.active_model.commit_operation
       end

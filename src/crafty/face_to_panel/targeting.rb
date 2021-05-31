@@ -57,6 +57,7 @@ module Crafty
         @vector.length = text.to_l
         self.apply_bounds tool
         view.invalidate
+        self
       rescue ArgumentError
         view.tooltip = 'Invalid length'
         UI.beep

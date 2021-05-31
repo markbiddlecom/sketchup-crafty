@@ -2,16 +2,16 @@
 
 module Crafty
   module ToolStateMachine
+    # rubocop:disable Naming/MethodName
     class Tool
-      # rubocop:disable Naming/MethodName
-
       def getExtents
         @bounds
       end
 
       # @return [Boolean] whether or not the measurement box should accept user input
       def enableVCB?
-        self.vcb_mode[0]
+        enable = self.vcb_mode[0] ? true : false
+        enable
       end
 
       # Called by Sketchup when the tool is activated for the first time.
@@ -21,26 +21,27 @@ module Crafty
 
       # @param view [Sketchup::View]
       def onCancel(_reason, view)
-        Sketchup.active_model.select_tool nil
-        view.invalidate
+        self.apply_mode Mode::END_OF_OPERATION, view
       end
 
       # @param view [Sketchup::View]
+      # @return [void]
       def deactivate(view)
+        self.onCancel(nil, view)
         view.invalidate
-        @mode.chordset.reset!
       end
 
       # @param view [Sketchup::View]
       def suspend(view)
-        view.invalidate
         @mode.chordset.reset!
+        self.apply_mode @mode.on_suspend(self, view), view
+        view.invalidate
       end
 
       # @param view [Sketchup::View]
       def resume(view)
         @mode.chordset.reset!
-        self.update_ui true
+        self.apply_mode @mode.on_resume(self, view), view, force_ui_update: true
         view.invalidate
       end
 
@@ -86,9 +87,9 @@ module Crafty
           down_pos = @lbutton_down || @rbutton_down
           cur_pt = Geom::Point2d.new x, y
           if cur_pt.distance(down_pos) > Mode::CLICK_SLOP_DISTANCE
-            @drag_rect = Util.bounds_from_pts down_pos, cur_pt
+            self.drag_rect = Util.bounds_from_pts down_pos, cur_pt
           else
-            @drag_rect = nil
+            self.drag_rect = nil
           end
           view.invalidate
         end
@@ -96,21 +97,32 @@ module Crafty
 
       # @param view [Sketchup::View]
       def onKeyDown(key, repeat, _flags, _view)
+        handled = false
         if repeat == 1
-          @mode.chordset.on_keydown(key)
+          handled = @mode.chordset.on_keydown(key)
         end
+        handled
       end
 
       # @param view [Sketchup::View]
-      def onKeyUp(key, repeat, _flags, _view)
+      def onKeyUp(key, repeat, _flags, view)
+        handled = false
         if repeat == 1
-          @mode.chordset.on_keyup(key)
+          handled, new_mode = @mode.chordset.on_keyup(key)
+          self.apply_mode(new_mode, view) unless new_mode.nil?
         end
+        handled
       end
 
       # @param view [Sketchup::View]
       def draw(view)
-        @mode.draw self, view
+        if self.drag_rect.nil?
+          @mode.draw self, view
+        else
+          Util.draw_and_restore(view, stipple: Util::STIPPLE_LONG_DASHED) {
+            view.draw2d GL_LINE_LOOP, *self.drag_rect_to_pts3d
+          }
+        end
       end
 
       # @param view [Sketchup::View]
@@ -121,8 +133,7 @@ module Crafty
       def onUserText(text, view)
         self.apply_mode (@mode.on_value self, text, view), view
       end
-
-      # rubocop:enable Naming/MethodName
     end # class Tool
+    # rubocop:enable Naming/MethodName
   end # module ToolStateMachine
 end # module Crafty

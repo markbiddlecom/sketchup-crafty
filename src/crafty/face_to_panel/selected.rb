@@ -30,7 +30,7 @@ module Crafty
       def activate_mode(tool, _old_mode, view)
         ctr = @face.bounds.center
         pt2 = ctr
-        if @@last_thickness.nil?
+        if @@last_thickness.nil? || @@last_thickness == ZERO_LENGTH
           @vector = nil
         else
           pt2 = ctr.offset(@face.normal, @@last_thickness)
@@ -41,8 +41,17 @@ module Crafty
 
         self.apply_bounds(tool)
 
-        view.lock_inference @thickness_ip, Sketchup::InputPoint.new(ctr.offset(@vector || @face.normal))
         view.invalidate
+      end
+
+      def on_suspend(_tool, view)
+        view.lock_inference # clear inferences
+        self
+      end
+
+      def on_resume(_tool, view)
+        self.lock_inference(view)
+        self
       end
 
       def on_mouse_move(tool, _flags, x, y, view)
@@ -73,26 +82,32 @@ module Crafty
           self
         else
           @@last_thickness = @vector.length
-          Targeting.new @face, @cur_thickness
+          Targeting.new @face, @vector.length
         end
       end
 
       def draw(_tool, view)
         view.draw_points @face.bounds.center, 10, 1, 'blue'
-        Util.highlight_face @face, view, width: 2
-        unless @vector.nil? || @vector.length == 0.to_l
-          Util.highlight_face @face, view, color: 'blue', stipple: Util::STIPPLE_DASHED, offset: @vector
+        Util.highlight_face @face, view, width: 3
+        unless @vector.nil? || @vector.length == ZERO_LENGTH
+          Util.highlight_face @face, view, width: 5, color: 'blue', stipple: Util::STIPPLE_DASHED, offset: @vector
           Util.draw_and_restore(view, stipple: Util::STIPPLE_DOTTED) {
             view.set_color_from_line @face.bounds.center, @thickness_ip.position
-            view.draw_line @face.bounds.center, @thickness_ip.position
+            # view.draw_line @face.bounds.center, @thickness_ip.position
           }
         end
         @thickness_ip.draw view
-        @inference_ip.draw view
         view.tooltip = @thickness_ip.tooltip
       end
 
       private
+
+      # @param view [Sketchup::View]
+      # @return [void]
+      def lock_inference(view)
+        view.lock_inference # clear inference before resetting
+        view.lock_inference @thickness_ip, Sketchup::InputPoint.new(@thickness_ip.position.offset(@face.normal))
+      end
 
       # @param tool [ToolStateMachine::Tool] the tool whose bounds need to be set
       # @return [void]

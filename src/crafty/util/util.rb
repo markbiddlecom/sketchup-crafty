@@ -79,11 +79,18 @@ module Crafty
       end
     end
 
-    # @param entities [Sketchup::Entities] the list of entities to search
-    # @param persistent_id [Integer] the ID to find
-    # @return [Sketchup::Entity] the matching entity, if found, or `nil` otherwise
-    def self.find_by_persistent_id(entities, persistent_id)
-      entities.filter { |e| e.persistent_id == persistent_id }.first
+    # @param entity [Sketchup::Entity] the entity whose path is needed
+    # @return [Sketchup::InstancePath] the path to the given entity, or `nil` if the path cannot be resolved
+    def self.path_to(entity)
+      return nil if entity&.persistent_id.nil?
+
+      path = []
+      until entity.nil? || entity&.is_a?(Sketchup::Module)
+        path << entity
+        entity = entity.parent
+      end
+
+      Sketchup::InstancePath.new(path.reverse)
     end
   end # module Util
 end # module Crafty

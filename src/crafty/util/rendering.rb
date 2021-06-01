@@ -32,16 +32,21 @@ module Crafty
     # @param color [String, Sketchup::Color] the color of the drawn lines
     # @param width [Integer] the width of the drawn lines
     # @param stipple [String] the stipple pattern of the drawn lines
-    # @param offset [Geom::Vector3d] an offset to apply to all of the points
+    # @param offset [Geom::Vector3d] an offset for the rendered face; ignored if `transform` is `nil`
+    # @param transform [Geom::Transformation] an optional transformation to apply to the points before rendering; if
+    #   not `nil`, `offset` is ignored
+    # @param overlaid [Boolean] `true` to d
     # @param overlaid [Boolean] `true` to draw the face in the 2d plane (after mapping vertices), and `false` to draw
     #   in the 3d view
     # @param close [Boolean] `true` to draw a final line from the last point in `points` to the first, and `false` to
     #   draw the points as-is
     def self.draw(view, open_gl_num, *points,
-        color: 'black', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, overlaid: false, close: false)
+        color: 'black', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, transform: nil, overlaid: false,
+        close: false)
+      transform = Geom::Transformation.translation(offset) if transform.nil?
       pts_to_draw =
           (points + (close ? [points[0]] : [])) # close the loop if requested
-          .map { |pt| pt.offset(offset) } # offset the loop if requested
+          .map { |pt| transform * pt } # apply the transformation
       draw_and_restore(view, color: color, width: width, stipple: stipple) {
         if overlaid
           view.draw2d(open_gl_num, pts_to_draw.map { |pt| view.screen_coords(pt) })
@@ -57,24 +62,26 @@ module Crafty
     # @param color [String, Sketchup::Color] the color to draw the face in
     # @param width [Integer] the line width to use when drawing
     # @param stipple [String] the stipple pattern for the face
-    # @param offset [Geom::Vector3d] an offset for the rendered face
+    # @param offset [Geom::Vector3d] an offset for the rendered face; ignored if `transform` is `nil`
+    # @param transform [Geom::Transformation] an optional transformation to apply to the points before rendering; if
+    #   not `nil`, `offset` is ignored
     # @param overlaid [Boolean] `true` to draw the face in the 2d plane (after mapping vertices), and `false` to draw
     #   in the 3d view
     def self.highlight_face(face, view,
-        color: 'red', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, overlaid: false)
+        color: 'red', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, transform: nil, overlaid: false)
       draw(
           view,
-          GL_LINE_STRIP,
-          *loop_to_closed_pts(face.outer_loop, offset),
-          color: color, width: width, stipple: stipple, overlaid: overlaid
+          GL_LINE_LOOP,
+          *face.outer_loop.vertices.map(&:position),
+          color: color, width: width, stipple: stipple, offset: offset, transform: transform, overlaid: overlaid
         )
       view.line_width = [1, width - 2].max
       face.loops[1...face.loops.length].each { |l|
         draw(
             view,
-            GL_LINE_STRIP,
-            *loop_to_closed_pts(l, offset),
-            color: color, width: width, stipple: stipple, overlaid: overlaid
+            GL_LINE_LOOP,
+            *l.vertices.map(&:position),
+            color: color, width: width, stipple: stipple, offset: offset, transform: transform, overlaid: overlaid
           )
       }
     end

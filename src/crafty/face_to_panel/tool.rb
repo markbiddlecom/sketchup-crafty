@@ -31,16 +31,17 @@ module Crafty
     def self.apply(face, depth, offset, suppress_undo: false)
       return nil if face.nil?
 
+      model = Sketchup.active_model
       Crafty::Util.wrap_with_undo('Face to Panel', suppress_undo) do
         group = Util.unsafe_copy_in_place(Sketchup.active_model.active_entities, face, group_name: 'Panel', wrap: false)
         group.transform! Geom::Transformation.translation(offset)
 
         faces_to_panelize = group.entities.grep(Sketchup::Face).map(&:persistent_id)
         faces_to_panelize.each { |id|
-          cloned_face = Util.find_by_persistent_id(group.entities, id)
-          cloned_face.pushpull depth unless cloned_face.nil? || cloned_face.deleted?
+          cloned_face = model.find_entity_by_persistent_id(id)
+          cloned_face.pushpull (-1 * depth.to_f).to_l unless cloned_face.nil? || cloned_face.deleted?
           # Look this up again in case the pushpull did something weird
-          cloned_face = Util.find_by_persistent_id(group.entities, id)
+          cloned_face = model.find_entity_by_persistent_id(id)
           Crafty::Util::Attributes.tag_primary_face cloned_face unless cloned_face.nil? || cloned_face.deleted?
         }
         group

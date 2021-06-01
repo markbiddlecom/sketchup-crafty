@@ -45,14 +45,5 @@ module Crafty
           (x_end - x_start).abs, (y_end - y_start).abs
         )
     end
-
-    # Returns an array of [Geom::Point3d] values from the loop's vertices, with the first and last elements set to the
-    # same vertex.
-    # @param loop [Sketchup::Loop] the loop whose points are to be returned
-    # @param offset [Geom::Vector3d] an offset to apply to each point
-    # @return [Array<Geom::Point3d>] the points from the loop
-    def self.loop_to_closed_pts(loop, offset = ZERO_VECTOR)
-      (loop.vertices.map { |v| v.position + offset }) + [loop.vertices[0].position + offset]
-    end
   end # module Util
 end # module Crafty

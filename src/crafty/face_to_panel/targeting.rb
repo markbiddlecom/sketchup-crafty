@@ -10,7 +10,7 @@ module Crafty
       def initialize(face, thickness)
         @face = face
         @thickness = thickness
-        @thickness_vector = @face.normal.clone
+        @thickness_vector = @face.normal.reverse
         @thickness_vector.length = thickness.to_f
       end
 
@@ -20,11 +20,7 @@ module Crafty
       end
 
       def vcb
-        if @vector.nil?
-          [false, 'Distance', '']
-        else
-          [true, 'Distance', @vector.length]
-        end
+        [true, 'Distance', @vector&.length&.to_s || '']
       end
 
       def return_on_l_click
@@ -37,7 +33,7 @@ module Crafty
 
         ctr = @face.bounds.center
         pt2 = ctr.offset(@@last_offset)
-        @vector = @@last_offset.length == 0.to_l ? nil : @@last_offset.clone
+        @vector = (@@last_offset || ZERO_VECTOR).clone
         @inference_ip = Sketchup::InputPoint.new ctr
         @offset_ip = Sketchup::InputPoint.new pt2
 
@@ -54,34 +50,40 @@ module Crafty
       end
 
       def on_value(tool, text, view)
-        @vector.length = text.to_l
-        self.apply_bounds tool
-        view.invalidate
-        self
-      rescue ArgumentError
-        view.tooltip = 'Invalid length'
-        UI.beep
+        if @vector.length > ZERO_LENGTH
+          begin
+            @vector.length = text.to_l
+            self.apply_bounds tool
+            view.invalidate
+          rescue ArgumentError
+            view.tooltip = 'Invalid length'
+            UI.beep
+          else
+            return self.on_return(tool, view)
+          end
+        else
+          view.tooltip = 'Please indicate a direction before entering a length'
+          UI.beep
+        end
         self
       end
 
       def on_return(_tool, _view)
-        @@last_offset = @vector
-        FaceToPanel.apply @face, @thickness, @vector
+        @@last_offset = @vector || ZERO_VECTOR
+        FaceToPanel.apply @face, @thickness, @@last_offset
         Sketchup.active_model.selection.clear
         Unselected.new
       end
 
       # @return [void]
       def draw(_tool, view)
-        unless @vector.nil?
-          Util.highlight_face(@face, view, color: 'green', width: 2, offset: @vector)
-          Util.highlight_face(@face, view, color: 'green', offset: @vector + @thickness_vector)
+        Util.highlight_face(@face, view, color: 'green', width: 2, offset: @vector)
+        Util.highlight_face(@face, view, color: 'green', offset: @vector + @thickness_vector)
 
-          Util.draw_and_restore(view, stipple: Util::STIPPLE_DOTTED) {
-            view.set_color_from_line @face.bounds.center, @offset_ip.position
-            view.draw_line @face.bounds.center, @offset_ip.position
-          }
-        end
+        Util.draw_and_restore(view, stipple: Util::STIPPLE_DOTTED) {
+          view.set_color_from_line @face.bounds.center, @offset_ip.position
+          view.draw_line @face.bounds.center, @offset_ip.position
+        }
 
         @inference_ip.draw view
         @offset_ip.draw view

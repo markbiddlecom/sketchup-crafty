@@ -16,11 +16,7 @@ module Crafty
       end
 
       def vcb
-        if @vector.nil?
-          [false, 'Thickness', '']
-        else
-          [true, 'Thickness', @vector.length]
-        end
+        [true, 'Thickness', @vector&.length&.to_s || '']
       end
 
       def return_on_l_click
@@ -30,10 +26,10 @@ module Crafty
       def activate_mode(tool, _old_mode, view)
         ctr = @face.bounds.center
         pt2 = ctr
-        if @@last_thickness.nil? || @@last_thickness == ZERO_LENGTH
+        if (@@last_thickness || ZERO_LENGTH) <= ZERO_LENGTH
           @vector = nil
         else
-          pt2 = ctr.offset(@face.normal, @@last_thickness)
+          pt2 = ctr.offset(@face.normal.reverse, @@last_thickness)
           @vector = ctr.vector_to pt2
         end
         @inference_ip = Sketchup::InputPoint.new ctr
@@ -57,6 +53,7 @@ module Crafty
       def on_mouse_move(tool, _flags, x, y, view)
         if @thickness_ip.pick view, x, y, @inference_ip
           @vector = @face.bounds.center.vector_to @thickness_ip.position
+          @vector = nil if !@vector.valid? || @vector.samedirection?(@face.normal) # we want to push into the solid
           self.apply_bounds(tool)
           view.invalidate
         end
@@ -65,9 +62,13 @@ module Crafty
 
       def on_value(tool, text, view)
         thickness = text.to_l
-        thickness = (-1 * thickness.to_f).to_l if thickness > 0.to_l
-        @vector = @face.normal
-        @vector.length = thickness.to_f
+        if thickness == ZERO_LENGTH
+          @vector = nil
+        else
+          thickness = (-1 * thickness.to_f).to_l if thickness < ZERO_LENGTH
+          @vector = @face.normal.reverse
+          @vector.length = thickness.to_f
+        end
       rescue ArgumentError
         view.tooltip = 'Invalid thickness'
         UI.beep
@@ -76,9 +77,10 @@ module Crafty
         self.on_return tool, view
       end
 
-      def on_return(_tool, _view)
-        if @vector.nil? || @vector.length == 0.to_l
+      def on_return(_tool, view)
+        if !self.valid?
           UI.beep
+          view.tooltip = 'Please first indicate a thickness'
           self
         else
           @@last_thickness = @vector.length
@@ -89,7 +91,7 @@ module Crafty
       def draw(_tool, view)
         view.draw_points @face.bounds.center, 10, 1, 'blue'
         Util.highlight_face @face, view, width: 3
-        unless @vector.nil? || @vector.length == ZERO_LENGTH
+        if self.valid?
           Util.highlight_face @face, view, width: 5, color: 'blue', stipple: Util::STIPPLE_DASHED, offset: @vector
           Util.draw_and_restore(view, stipple: Util::STIPPLE_DOTTED) {
             view.set_color_from_line @face.bounds.center, @thickness_ip.position
@@ -101,6 +103,10 @@ module Crafty
       end
 
       private
+
+      def valid?
+        (@vector&.length || ZERO_LENGTH) > ZERO_LENGTH
+      end
 
       # @param view [Sketchup::View]
       # @return [void]

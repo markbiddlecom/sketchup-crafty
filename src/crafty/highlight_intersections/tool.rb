@@ -14,12 +14,15 @@ module Crafty
                       e.manifold? &&
                       Util::Attributes.find_primary_faces(e.entities).length == 1
                   }
+      selected_index = selected_solids.find_index(Sketchup.active_model.selection.first)
       if selected_solids.length < 2
         UI.beep
         Sketchup.active_model.active_view.tooltip = 'Please select at least two panel solids'
       else
         Sketchup.active_model.selection.clear
-        Sketchup.active_model.select_tool(ToolStateMachine::Tool.new { PrimaryMode.new(selected_solids) })
+        Sketchup.active_model.select_tool(ToolStateMachine::Tool.new {
+          PrimaryMode.new(selected_solids, selected_index)
+        })
       end
     end
 

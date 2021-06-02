@@ -44,6 +44,9 @@ module Crafty
           cloned_face = model.find_entity_by_persistent_id(id)
           Crafty::Util::Attributes.tag_primary_face cloned_face unless cloned_face.nil? || cloned_face.deleted?
         }
+        panel_vector = face.normal.reverse.clone
+        panel_vector.length = depth.to_l
+        Util::Attributes.set_panel_vector group, panel_vector
         group
       end
     end

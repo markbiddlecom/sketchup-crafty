@@ -28,9 +28,11 @@ module Crafty
 
     # Determines the areas on the primary solid's primary face that intersect with any of the given solids
     # @param primary_solid [Sketchup::Group] a manifold solid containing exactly one face marked as primary
-    # @param solids [Array<Sketchup::Group>]
-    # @return [Array<Geom::PolygonMesh>] an array of meshes that represent the intersecting areas of `primary_solid`
-    def self.find_penetrating_faces(primary_solid, solids)
+    # @param solids [Array<Sketchup::Group>] a collection of manifold solids to find intersections with
+    # @param transform [Geom::Transformation] an optional transformation to apply to the identified faces before
+    #   returning them (e.g., to translate them to world-space coordinates)
+    # @return [Array<Highlight>] an array of meshes that represent the intersecting areas of `primary_solid`
+    def self.find_penetrating_faces(primary_solid, solids, transform: IDENTITY)
       primary_face = Util::Attributes.find_primary_faces(primary_solid.entities)[0]
       raise(StandardError, 'primary_solid does not contain a face marked "primary"') if primary_face.nil?
 
@@ -40,13 +42,16 @@ module Crafty
         intersection = primary_copy.intersect(solid_copy)
 
         abutting = []
-        if intersection.nil?
-          abutting = find_abutting_faces(primary_face, intersection)
-        else
-          primary_copy.erase! unless primary_copy.deleted?
-          solid_copy.erase! unless solid_copy.deleted?
-          intersection.erase! unless intersection.deleted?
+        unless intersection.nil?
+          abutting = find_abutting_faces(
+              primary_solid, primary_face, [intersection],
+              type: :penetrating, transform: intersection.transformation, override_source: solid
+            )
         end
+
+        primary_copy.erase! unless primary_copy.deleted?
+        solid_copy.erase! unless solid_copy.deleted?
+        intersection.erase! unless intersection.deleted?
 
         abutting
       }
@@ -55,14 +60,18 @@ module Crafty
     # Identifies the faces from the solids list that abut the given face
     # @param primary_face [Sketchup::Face] the to test against each of the solids
     # @param solids [Enumerable<Sketchup::Group>] the solids containing the abutting faces
-    # @return [Array<Geom::PolygonMesh>]
-    def self.find_abutting_faces(primary_face, solids)
+    # @param type [Symbol] either `:penetrating` or `:abutting`
+    # @param transform [Geom::Transformation] an optional transformation to apply to the identified faces before
+    #   returning them (e.g., to translate them to world-space coordinates)
+    # @return [Array<Highlight>]
+    def self.find_abutting_faces(target, primary_face, solids,
+        type: :abutting, transform: IDENTITY, override_source: nil)
       primary_plane = Util::Plane.new(primary_face.plane)
       solids.flat_map { |solid|
         solid.entities
              .grep(Sketchup::Face)
              .filter { |face| primary_plane == Util::Plane.new(face.plane) }
-             .map(&:mesh)
+             .map { |face| Highlight.new(override_source || solid, target, face, type, transform: transform) }
       }
     end
   end # module HighlightIntersections

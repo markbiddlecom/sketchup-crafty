@@ -40,18 +40,31 @@ module Crafty
     #   in the 3d view
     # @param close [Boolean] `true` to draw a final line from the last point in `points` to the first, and `false` to
     #   draw the points as-is
+    # @param texture [Hash] the `:id`, `:width`, and `:height` of a texture to use when rendering (UV coordinates will
+    #   be copied from screen space)
     def self.draw(view, open_gl_num, *points,
         color: 'black', width: 1, stipple: STIPPLE_SOLID, offset: ZERO_VECTOR, transform: nil, overlaid: false,
-        close: false)
+        close: false, texture: nil)
       transform = Geom::Transformation.translation(offset) if transform.nil?
       pts_to_draw =
           (points + (close ? [points[0]] : [])) # close the loop if requested
           .map { |pt| transform * pt } # apply the transformation
+
+      uvs = nil
+      unless texture.nil?
+        uvs = pts_to_draw.map { |pt|
+          sc = view.screen_coords(pt)
+          [sc.x / texture[:width], sc.y / texture[:height], 0]
+        }
+      end
+
       draw_and_restore(view, color: color, width: width, stipple: stipple) {
         if overlaid
-          view.draw2d(open_gl_num, pts_to_draw.map { |pt| view.screen_coords(pt) })
+          view.draw2d(
+              open_gl_num, pts_to_draw.map { |pt| view.screen_coords(pt) }, texture: texture&.dig(:id), uvs: uvs
+            )
         else
-          view.draw(open_gl_num, pts_to_draw)
+          view.draw(open_gl_num, pts_to_draw, texture: texture&.dig(:id), uvs: uvs)
         end
       }
     end

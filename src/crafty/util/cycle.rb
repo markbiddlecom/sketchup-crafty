@@ -46,7 +46,7 @@ module Crafty
       # @param other [#to_i, Symbol, String, Cycle] the value to compare
       # @return [Boolean] `true` if both values currently represent cycles with the same current mode, and `false`
       #   otherwise.
-      def ===(other)
+      def ==(other)
         if other.is_a?(String) || other.is_a?(Symbol)
           self.cur_mode == other
         elsif other.is_a? Cycle
@@ -56,6 +56,10 @@ module Crafty
         else
           false
         end
+      end
+
+      def to_s
+        "Cycle(#{@modes.map.with_index { |m, i| i == self.to_i ? "[#{m}]" : m.to_s }.join(' ')})"
       end
 
       private

@@ -21,5 +21,20 @@ module Crafty
       submenu.add_item('Project To Plane') { Crafty::ProjectToPlane.start_tool }
       file_loaded(__FILE__)
     end
+
+    def self.asset_file(file)
+      dir = Kernel.__dir__.dup
+      dir.force_encoding('UTF-8') if dir.respond_to?(:force_encoding)
+      File.join(dir, 'assets', file)
+    end
+
+    def self.load_texture_asset(view, file)
+      asset_rep = Sketchup::ImageRep.new(asset_file(file))
+      {
+        id: view.load_texture(asset_rep),
+        width: asset_rep.width,
+        height: asset_rep.height,
+      }
+    end
   end # module Plugin
 end # module Crafty

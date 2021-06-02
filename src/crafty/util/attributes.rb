@@ -7,6 +7,7 @@ module Crafty
 
       ATTRIBUTE_PRIMARY_FACE = 'primary_face'
       ATTRIBUTE_PRIMARY_FACE_VALUE = 'true'
+      ATTRIBUTE_PANEL_VECTOR = 'panel_vector'
 
       # Retrieves an attribute from the entity assuming the crafty dictionary
       # @param entity [Sketchup::Entity] the entity from which to retrieve the attribute
@@ -46,6 +47,24 @@ module Crafty
       # @param face [Sketchup::Face] the face to tag
       def self.tag_primary_face(face)
         self.set_attribute face, ATTRIBUTE_PRIMARY_FACE, ATTRIBUTE_PRIMARY_FACE_VALUE
+      end
+
+      # Sets the `"panel_vector"` attribute for the given group to the given value
+      # @param group [Sketchup::Group] the group whose attribute should be set
+      # @param vector [#to_a] the vector to apply
+      def self.set_panel_vector(group, vector)
+        self.set_attribute group, ATTRIBUTE_PANEL_VECTOR, vector.to_a.map(&:to_f).join(',')
+      end
+
+      # Parses and retrieves the `"panel_vector"` attribute from the given group
+      # @param group [Sketchup::Group] the group whose attribute is to be retrieved
+      # @return [Geom::Vector3d] a vector pointing normal from the panel's primary face into the panel (i.e., the
+      #   reverse of the primary face's normal vector) and having a length equal to the panel thickness
+      def self.get_panel_vector(group)
+        serialized = get_attribute group, ATTRIBUTE_PANEL_VECTOR
+        return nil if serialized.nil?
+
+        Geom::Vector3d.new(serialized.split(/,/).map(&:to_f))
       end
 
       # Returns an array of every face from the given enumerable that has the primary face tag

@@ -46,8 +46,8 @@ module Crafty
 
       # @param other [Plane] the plane to test against this plane
       # @return [Boolean] `true` if these planes are parallel and `false` otherwise
-      def parallel?(other)
-        @normal.parallel? other.normal
+      def parallel?(other, either_orientation: false)
+        @normal.parallel?(other.normal) || (either_orientation && @normal.parallel?(other.normal.reverse))
       end
 
       # @param other [Plane] the plane to test against this plane

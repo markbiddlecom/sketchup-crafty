@@ -63,3 +63,5 @@ Style/ZeroLengthPredicate:
   Enabled: false # gets confused for Vector3D.length
 Style/DoubleNegation:
   Enabled: false # want boolean coercion to be a thing
+Style/MultilineBlockChain:
+  Enabled: false # too prescriptive

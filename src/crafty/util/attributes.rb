@@ -5,8 +5,8 @@ module Crafty
     module Attributes
       CRAFTY_DICTIONARY_NAME = 'Crafty::Attributes::Dictionary'
 
-      ATTRIBUTE_PRIMARY_FACE = 'primary_face'
-      ATTRIBUTE_PRIMARY_FACE_VALUE = 'true'
+      ATTRIBUTE_PRIMARY_FACE = 'primary_face_pid'
+      ATTRIBUTE_BACK_FACE = 'back_face_pid'
       ATTRIBUTE_PANEL_VECTOR = 'panel_vector'
 
       # Retrieves an attribute from the entity assuming the crafty dictionary
@@ -43,10 +43,39 @@ module Crafty
         entities.find_all { |e| self.attribute? e, attribute_name }
       end
 
-      # Sets the `"primary_face"` attribute for the given face to `"true"`
-      # @param face [Sketchup::Face] the face to tag
-      def self.tag_primary_face(face)
-        self.set_attribute face, ATTRIBUTE_PRIMARY_FACE, ATTRIBUTE_PRIMARY_FACE_VALUE
+      # Sets the `"primary_face_pid"` and `"back_face_pid"` attributes for the given group to the given values
+      # @param group [Sketchup::Group] the panel group containing the faces
+      # @param primary_face [Sketchup::Face] the primary face, which must be an entity within `group`
+      # @param back_face [Sketchup::Face] the back face, which must be an entity within `group`
+      # @return [Sketchup::Group] `group`
+      def self.tag_faces(group, primary_face, back_face)
+        pf_id = primary_face.persistent_id
+        bf_id = back_face.persistent_id
+
+        self.set_attribute group, ATTRIBUTE_PRIMARY_FACE, pf_id
+        self.set_attribute group, ATTRIBUTE_BACK_FACE, bf_id
+
+        group
+      end
+
+      # Loads the primary and back faces from the given group
+      # @param group [Sketchup::Group] the group representing a panel
+      # @return [Hash] a hash with the `:primary_face` and `:back_face` keys set, or `nil` if either face cannot be
+      #   located
+      def self.get_panel_faces(group)
+        primary_face = Sketchup.active_model.find_entity_by_persistent_id(
+            get_attribute(group, ATTRIBUTE_PRIMARY_FACE) || -1
+          )
+        back_face = Sketchup.active_model.find_entity_by_persistent_id(
+            get_attribute(group, ATTRIBUTE_BACK_FACE) || -1
+          )
+
+        if primary_face.nil? || back_face.nil? ||
+           !primary_face.is_a?(Sketchup::Face) || !back_face.is_a?(Sketchup::Face)
+          nil
+        else
+          { primary_face: primary_face, back_face: back_face }
+        end
       end
 
       # Sets the `"panel_vector"` attribute for the given group to the given value
@@ -65,13 +94,6 @@ module Crafty
         return nil if serialized.nil?
 
         Geom::Vector3d.new(serialized.split(/,/).map(&:to_f))
-      end
-
-      # Returns an array of every face from the given enumerable that has the primary face tag
-      # @param entities [Enumerable<Sketchup::Entity>] the list of entities to scan
-      # @return [Array<Sketchup::Face>] the matching faces
-      def self.find_primary_faces(entities)
-        self.entities_with_attribute(entities, ATTRIBUTE_PRIMARY_FACE).grep(Sketchup::Face)
       end
     end # module Attributes
   end # module Util

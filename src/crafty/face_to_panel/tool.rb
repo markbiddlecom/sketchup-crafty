@@ -37,16 +37,29 @@ module Crafty
         group.transform! Geom::Transformation.translation(offset)
 
         faces_to_panelize = group.entities.grep(Sketchup::Face).map(&:persistent_id)
-        faces_to_panelize.each { |id|
-          cloned_face = model.find_entity_by_persistent_id(id)
-          cloned_face.pushpull (-1 * depth.to_f).to_l unless cloned_face.nil? || cloned_face.deleted?
-          # Look this up again in case the pushpull did something weird
-          cloned_face = model.find_entity_by_persistent_id(id)
-          Crafty::Util::Attributes.tag_primary_face cloned_face unless cloned_face.nil? || cloned_face.deleted?
-        }
+        raise "Unexpected face count #{faces_to_panelize.length} after clone" unless faces_to_panelize.length == 1
+
+        id = faces_to_panelize.first
+        primary_face = model.find_entity_by_persistent_id(id)
+        primary_face.pushpull (-1 * depth.to_f).to_l unless primary_face.nil? || primary_face.deleted?
+
+        # Look this up again in case the pushpull did something weird
+        primary_face = model.find_entity_by_persistent_id(id)
+        raise 'Could not locate face after pushpull' if primary_face.nil? || primary_face.deleted?
+
+        # Find the back face--just assume it's the first face with a parallel plane
+        primary_plane = Util::Plane.new(primary_face.plane)
+        back_face = group.entities.grep(Sketchup::Face).filter { |f|
+          f.persistent_id != id && primary_plane.parallel?(Util::Plane.new(f.plane), either_orientation: true)
+        }.first
+        raise 'Could not locate back face after pushpull' if back_face.nil? || back_face.deleted?
+
+        # Set the panel attributes
         panel_vector = face.normal.reverse.clone
         panel_vector.length = depth.to_l
         Util::Attributes.set_panel_vector group, panel_vector
+        Util::Attributes.tag_faces group, primary_face, back_face
+
         group
       end
     end

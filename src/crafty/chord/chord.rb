@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'sketchup.rb'
 require 'crafty/util/util.rb'
 
 module Crafty

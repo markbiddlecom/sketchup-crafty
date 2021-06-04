@@ -14,17 +14,19 @@ module Crafty
       # @param target [Sketchup::Group] the solid that has been intersected or abutted
       # @param face [Sketchup::Face] the face describing the intersecting area
       # @param type [Symbol] the type of highlight this represents `:penetrating` or `:abutting`
-      # @param transform [Geom::Transformation] a transformation to apply to the captured geometry
-      def initialize(source, target, face, type, transform: IDENTITY)
+      # @param face_transform [Geom::Transformation] a transformation to apply to the captured geometry
+      def initialize(source, target, face, type, face_transform: IDENTITY)
         @source_pid = source.persistent_id
         @target_pid = target.persistent_id
         @type = type
         @split_vector = (Util::Attributes.get_panel_vector target)&.cross(face.normal)
 
-        @loops = face.loops.map { |l| l.vertices.map { |v| transform * v.position } }
+        @loops = face.loops.map { |l| l.vertices.map { |v| face_transform * v.position } }
 
         mesh = face.mesh
-        @polygons = mesh.polygons.flat_map { |indices| indices.map { |index| transform * mesh.point_at(index.abs) } }
+        @polygons = mesh.polygons.flat_map { |indices|
+          indices.map { |index| face_transform * mesh.point_at(index.abs) }
+        }
       end
     end
   end # module HighlightIntersections

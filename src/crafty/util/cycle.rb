@@ -16,6 +16,12 @@ module Crafty
         @modes[self.to_i]
       end
 
+      # @param modes [Array] an array of elements that corresponds to the modes for this cycle
+      # @return [Object] the element from `modes` at the current index of this cycle.
+      def map(*modes)
+        modes[self.to_i]
+      end
+
       # @param mode [String, Symbol] the mode to set this cycle to
       # @return [nil, String, Symbol] the provided `mode`, if it is an element of this cycle, or `nil` otherwise
       def cur_mode=(mode)

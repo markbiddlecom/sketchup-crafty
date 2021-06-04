@@ -5,7 +5,8 @@ module Crafty
     COLOR_PENETRATING = 'red'
     COLOR_ABUTTING = 'green'
 
-    COLOR_PRIMARY = 'black'
+    COLOR_PRIMARY = 'orange'
+    COLOR_BACK = 'yellow'
     COLOR_SECONDARY = 'gray'
 
     class PrimaryMode < Crafty::ToolStateMachine::Mode
@@ -16,13 +17,18 @@ module Crafty
       end
 
       def activate_mode(tool, _old_mode, view)
-        self.select_primary(@initial_selected_index || 0)
         @highlight_mode = Util::Cycle.new(:all, :penetrating, :abutting)
-        puts @highlight_mode
+        @face_mode = Util::Cycle.new(:primary_face, :back_face)
+        @area_mode = Util::Cycle.new(:full, :near, :far, :middle)
+        @mod_mode = Util::Cycle.new(:carve, :draw, :guide)
+
+        self.select_primary(@initial_selected_index || 0)
+
         tool.bounds.clear.add(*@panel_solids.map(&:bounds))
+        view.invalidate
+
         @penetrating_texture = Plugin.load_texture_asset(view, 'penetrating.png')
         @abutting_texture = Plugin.load_texture_asset(view, 'abutting.png')
-        view.invalidate
       end
 
       def deactivate_mode(_tool, _new_mode, view)
@@ -36,21 +42,32 @@ module Crafty
 
         # Highlight the primary face
         Util.highlight_face(
-            @primary_face, view, color: 'orange', width: 3, transform: @primary_solid.transformation, overlaid: true
+            self.send(@face_mode.cur_mode),
+            view,
+            color: @face_mode.map(COLOR_PRIMARY, COLOR_BACK),
+            width: 3,
+            transform: @primary_solid.transformation,
+            overlaid: true
           )
 
         # Faces
         [
-          [@penetrating, :penetrating, COLOR_PENETRATING, @penetrating_texture],
-          [@abutting, :abutting, COLOR_ABUTTING, @abutting_texture],
-        ].flat_map { |(highlights, mode, color, texture)|
-          @highlight_mode == :all || @highlight_mode == mode ? highlights.map { |h| [h, color, texture] } : []
+          [:penetrating, COLOR_PENETRATING, @penetrating_texture],
+          [:abutting, COLOR_ABUTTING, @abutting_texture],
+        ].flat_map { |(mode, color, texture)|
+          if @highlight_mode == :all || @highlight_mode == mode
+            @highlights.filter { |h| h.type == mode }.map { |h| [h, color, texture] }
+          else
+            []
+          end
         }.each { |(highlight, color, texture)|
           self.draw_highlight(view, highlight, color, texture)
         }
       end
 
       private
+
+      attr_reader :primary_face, :back_face
 
       def draw_highlight(view, highlight, color, texture)
         Util.draw(view, GL_TRIANGLES, *highlight.polygons, color: color, overlaid: true, texture: texture)
@@ -61,15 +78,14 @@ module Crafty
       def select_primary(new_primary)
         # @type [Sketchup::Group]
         @primary_solid = @panel_solids[new_primary]
-        @primary_face = Util::Attributes.find_primary_faces(@primary_solid.entities).first
+        @primary_face, @back_face = Util::Attributes.get_panel_faces(@primary_solid)
+                                                    &.fetch_values(:primary_face, :back_face)
         @secondary_solids = @panel_solids.reject.with_index { |_, i| i == new_primary }
-        @penetrating = HighlightIntersections.find_penetrating_faces(
-            @primary_solid, @secondary_solids, transform: @primary_solid.transformation
+        @highlights = HighlightIntersections.find_intersections(
+            @primary_solid, @face_mode.cur_mode, @secondary_solids,
+            xform_primary_to_world: @primary_solid.transformation,
+            xform_solids_to_world: @secondary_solids.map(&:transformation)
           )
-        # @abutting = HighlightIntersections.find_abutting_faces(
-        #     @primary_solid, @primary_face, @secondary_solids, transform: @primary_solid.transformation
-        #   )
-        @abutting = []
       end
     end # class PrimaryMode
   end # module HighlightIntersections

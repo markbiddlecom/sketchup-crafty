@@ -1,15 +1,18 @@
-require_paths:
-- "C:/Program Files/SketchUp/SketchUp 2021/Tools"
-- "../../../../../Program Files/SketchUp/SketchUp 2021/Tools"
-- src
-
 include:
 - "src/**/*.rb"
-
 require:
-- sketchup-api-stubs
-- set
-
+- "sketchup-api-stubs"
+domains: []
 reporters:
 - rubocop
-- typecheck:typed
+formatter:
+  rubocop:
+    cops: safe
+    except: []
+    only: []
+    extra_args: []
+require_paths:
+- "src"
+- "../../../../../Program Files/SketchUp/SketchUp 2021/Tools/"
+plugins: []
+max_files: 5000

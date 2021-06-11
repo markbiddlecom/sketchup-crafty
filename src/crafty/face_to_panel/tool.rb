@@ -6,7 +6,7 @@ require 'crafty/face_to_panel/unselected.rb'
 
 module Crafty
   module FaceToPanel
-    TOOL = Crafty::ToolStateMachine::Tool.new do
+    TOOL = ToolStateMachine::Tool.new do
       # If a face is already selected, apply to that face; otherwise, ask the user to select a face
       sel = Sketchup.active_model.selection
       mode = Unselected.new
@@ -32,7 +32,7 @@ module Crafty
       return nil if face.nil?
 
       model = Sketchup.active_model
-      Crafty::Util.wrap_with_undo('Face to Panel', suppress_undo) do
+      Util.wrap_with_undo('Face to Panel', suppress_undo) do
         group = Util.unsafe_copy_in_place(Sketchup.active_model.active_entities, face, group_name: 'Panel', wrap: false)
         group.transform! Geom::Transformation.translation(offset)
 

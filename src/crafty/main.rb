@@ -16,9 +16,9 @@ module Crafty
     unless file_loaded?(__FILE__)
       menu = UI.menu('Plugins')
       submenu = menu.add_submenu('Crafty')
-      submenu.add_item('Face To Panel') { Crafty::FaceToPanel.start_tool }
-      submenu.add_item('Highlight Intersections') { Crafty::HighlightIntersections.start_tool }
-      submenu.add_item('Project To Plane') { Crafty::ProjectToPlane.start_tool }
+      submenu.add_item('Face To Panel') { FaceToPanel.start_tool }
+      submenu.add_item('Highlight Intersections') { HighlightIntersections.start_tool }
+      submenu.add_item('Project To Plane') { ProjectToPlane.start_tool }
       file_loaded(__FILE__)
     end
 

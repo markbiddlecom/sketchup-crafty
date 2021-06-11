@@ -9,7 +9,7 @@ module Crafty
     # sufficiently separated to avoid tolerance-related issues.
     # @param pts [Enumerable<Geom::Point3d>] a set of points to check for proximity
     # @param tolerance [Length] the minimum desired distance between any two points in the list
-    # @param plane [nil, Crafty::Plane] an optional plane along which point distances are tested
+    # @param plane [nil, Plane] an optional plane along which point distances are tested
     # @return [Float, nil] the suggested scale factor to apply, or `nil` if scaling is not necessary
     def self.suggested_scale_factor(pts, tolerance = TOLERANCE, plane = nil)
       closest_dist = nil
@@ -40,7 +40,7 @@ module Crafty
     # across each polygon
     # @param mesh [Geom::PolygonMesh] the mesh from which to extract and process polygons
     # @param tolerance [Length] the minimum desired distance between any two points in the list
-    # @param plane [nil, Crafty::Plane] an optional plane along which point distances are tested
+    # @param plane [nil, Plane] an optional plane along which point distances are tested
     # @return [Array(Array<Geom::Point3d>, Numeric)] a tuple containing the list of un-looped polygon points and the
     #   suggested scale factor. The scale factor will be `nil` if no triangles are below the tolerance threshold.
     def self.mesh_to_polygons_and_scale_factor(mesh, tolerance = TOLERANCE, plane = nil)

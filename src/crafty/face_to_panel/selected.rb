@@ -2,7 +2,7 @@
 
 module Crafty
   module FaceToPanel
-    class Selected < Crafty::ToolStateMachine::Mode
+    class Selected < ToolStateMachine::Mode
       @@last_thickness = nil
 
       # @param face [Sketchup::Face] the face to turn into a panel

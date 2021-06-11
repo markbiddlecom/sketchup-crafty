@@ -10,7 +10,7 @@ module Crafty
         @switch_mode = switch_mode
         # @type [nil, Sketchup::Face]
         @face = nil
-        @chordset = Crafty::Chords::Chordset.new(
+        @chordset = Chords::Chordset.new(
             {
               cmd: :select,
               help: 'Select Face',
@@ -26,17 +26,17 @@ module Crafty
           )
       end
 
-      # @param event [Crafty::Chords::EnactEvent] details about the event
+      # @param event [Chords::EnactEvent] details about the event
       def on_select(_chord, event)
         if @face.nil?
           UI.beep
         else
-          Crafty::ProjectToPlane.project_edges_to_plane(@selection, Crafty::Util::Plane.new(@face.plane))
+          ProjectToPlane.project_edges_to_plane(@selection, Util::Plane.new(@face.plane))
           event.new_mode = ToolStateMachine::Mode::END_OF_OPERATION
         end
       end
 
-      # @param event [Crafty::Chords::EnactEvent] details about the event
+      # @param event [Chords::EnactEvent] details about the event
       def on_switch(_chord, event)
         event.new_mode = @switch_mode
       end

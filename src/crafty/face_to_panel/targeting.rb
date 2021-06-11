@@ -2,7 +2,7 @@
 
 module Crafty
   module FaceToPanel
-    class Targeting < Crafty::ToolStateMachine::Mode
+    class Targeting < ToolStateMachine::Mode
       @@last_offset = ZERO_VECTOR
 
       # @param face [Sketchup::Face] the face to turn into a panel

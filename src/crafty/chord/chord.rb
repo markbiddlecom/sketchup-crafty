@@ -39,9 +39,9 @@ module Crafty
       # @param cmd [Symbol] the name of the chord's command
       # @param help [String] the help text to display when this chord is reachable
       # @param modifiers [Numeric] a bitwise combination of the modifier keys needed to activate this chord
-      #   @see #{Crafty::Util::Chord::CTRL_CMD}
-      #   @see #{Crafty::Util::Chord::ALT_OPTION}
-      #   @see #{Crafty::Util::Chord::SHIFT}
+      #   @see #{Chord::CTRL_CMD}
+      #   @see #{Chord::ALT_OPTION}
+      #   @see #{Chord::SHIFT}
       # @param button [Integer] the mouse button that must be clicked for the command to be activated
       # @param keys [Array<String, Array>] the keys that need to be pressed together and/or in sequence for
       #   the chord to be activated
@@ -108,7 +108,7 @@ module Crafty
         if keys.nil? || (keys.length == 0)
           []
         else
-          keys.map { |e| Crafty::Util.to_str_array e }
+          keys.map { |e| Util.to_str_array e }
         end
       end
 

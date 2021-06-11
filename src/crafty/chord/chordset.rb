@@ -6,7 +6,7 @@ module Crafty
       @@debug = false
 
       def self.debug=(new_value)
-        @@debug = new_value ? true : false
+        @@debug = !!new_value
       end
 
       # @param chords [Array<Hash>] initialization parameters for the chords to track
@@ -62,14 +62,16 @@ module Crafty
       end
 
       # @param keycode [Numeric] the ID of the key that was released
+      # @param tool [ToolStateMachine::Tool] the active tool
+      # @param view [Sketchup::View] the active view
       # @return [Array(Boolean, ToolStateMachine::Mode)] the first array element will be `true` if the input was
       #   handled, and `false` if SketchUp should process it as well; the second input indicates the new mode to apply
       #   to the calling tool, or `nil` to indicate no change is needed
-      def on_keyup(keycode)
+      def on_keyup(keycode, tool, view)
         modifier = Chordset.keycode_to_modifier keycode
         if modifier.nil?
           key = Util.keycode_to_key keycode
-          handled, new_state, new_mode = @state.accept_keyup(key, @current_modifiers, self)
+          handled, new_state, new_mode = @state.accept_keyup(key, @current_modifiers, tool, self, view)
           puts "#{@state}.accept_keyup => [#{handled}, #{new_state}]" if @@debug
           self.apply_state new_state
           [handled, new_mode]
@@ -80,13 +82,15 @@ module Crafty
       end
 
       # @param button [Numeric] the ID of the button that was clicked.
-      #   @see #{Crafty::Chord.LBUTTON}
-      #   @see #{Crafty::Chord.RBUTTON}
+      #   @see #{Chord.LBUTTON}
+      #   @see #{Chord.RBUTTON}
       # @param point [Geom::Point2d] the point where the user clicked the button
+      # @param tool [ToolStateMachine::Tool] the active tool
+      # @param view [Sketchup::View] the active view
       # @return [nil, ToolStateMachine::Mode] the new mode to apply to the calling tool, or `nil` to indicate no change
       #   is needed
-      def on_click(button, point)
-        new_state, new_mode = @state.accept_click(button, point, @current_modifiers, self)
+      def on_click(button, point, tool, view)
+        new_state, new_mode = @state.accept_click(button, point, @current_modifiers, tool, self, view)
         self.apply_state new_state
         new_mode
       end

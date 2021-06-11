@@ -3,12 +3,12 @@
 module Crafty
   module ToolStateMachine
     class Mode
-      EMPTY_CHORDSET = Crafty::Chords::Chordset.new
+      EMPTY_CHORDSET = Chords::Chordset.new
       # @type [Array(Boolean, String, String)]
       NULL_VCB_STATE = [false, '', ''].freeze
       CLICK_SLOP_DISTANCE = 5
 
-      # @return [Crafty::Chords::Chordset] the command chords applicable to this mode
+      # @return [Chords::Chordset] the command chords applicable to this mode
       def chordset
         EMPTY_CHORDSET
       end

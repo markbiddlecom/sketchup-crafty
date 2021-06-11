@@ -26,7 +26,7 @@ module Crafty
 
     # Projects all of the edges in the given list to
     # @param edges [Enumerable<Sketchup::Entity>, Sketchup::Entities] a list containing the edges to project
-    # @param plane [Crafty::Util::Plane]
+    # @param plane [Util::Plane]
     def self.project_edges_to_plane(edges, plane)
       projection_group = Sketchup.active_model.active_entities.add_group
       projection_group.name = 'Projection'

@@ -2,7 +2,7 @@
 
 module Crafty
   module FaceToPanel
-    class Unselected < Crafty::ToolStateMachine::Mode
+    class Unselected < ToolStateMachine::Mode
       # @return [String]
       def status
         'Select the face to make into a panel'

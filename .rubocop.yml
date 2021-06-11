@@ -52,16 +52,18 @@ Layout/EmptyLinesAroundClassBody:
 Layout/EmptyLinesAroundModuleBody:
   Enabled: true
 
-Metrics/ParameterLists:
-  Enabled: false
+Metrics/ClassLength:
+  Max: 500
 Metrics/MethodLength:
   Max: 30
+Metrics/ParameterLists:
+  Enabled: false
 
 Style/ClassVars:
   Enabled: false # don't tell me what I can't do!
-Style/ZeroLengthPredicate:
-  Enabled: false # gets confused for Vector3D.length
 Style/DoubleNegation:
   Enabled: false # want boolean coercion to be a thing
 Style/MultilineBlockChain:
   Enabled: false # too prescriptive
+Style/ZeroLengthPredicate:
+  Enabled: false # gets confused for Vector3D.length

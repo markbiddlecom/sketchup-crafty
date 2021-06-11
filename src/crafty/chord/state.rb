@@ -19,10 +19,12 @@ module Crafty
       # @param button [Integer] the button that was clicked
       # @param point [Geom::Point2d] the point where the mouse was clicked
       # @param cur_modifiers [Integer] the current state of modifier keys
+      # @param tool [ToolStateMachine::Tool] the active tool
       # @param chordset [Chordset] the chordset processing the event
+      # @param view [Sketchup::View] the active view
       # @return [Array(ChordsetState, ToolStateMachine::Mode)] the new states for the chord and accompanying tool after
       #   processing the click
-      def accept_click(_button, _point, _cur_modifiers, _chordset)
+      def accept_click(_button, _point, _cur_modifiers, _tool, _chordset, _view)
         [self]
       end
 
@@ -38,11 +40,13 @@ module Crafty
 
       # @param key [String] the key that was released
       # @param cur_modifiers [Integer] the current state of modifier keys
+      # @param tool [ToolStateMachine::Tool] the active tool
       # @param chordset [Chordset] the chordset processing the event
+      # @param view [Sketchup::View] the active view
       # @return [Array(Boolean, ChordsetState, ToolStateMachine::Mode)] the first element is `true` if the input was
       #   processed, and `false` if SketchUp should handle it as well; the second two indicate the new states for the
       #   chord and accompanying tool after processing the keypress.
-      def accept_keyup(_key, _cur_modifiers, _chordset)
+      def accept_keyup(_key, _cur_modifiers, _tool, _chordset, _view)
         [false, self, nil]
       end
 
@@ -74,8 +78,8 @@ module Crafty
       end
 
       class Idle < ChordsetState
-        def accept_click(button, point, cur_modifiers, chordset)
-          event = ClickEnactEvent.new(point)
+        def accept_click(button, point, cur_modifiers, tool, chordset, view)
+          event = ClickEnactEvent.new(tool, chordset, view, point)
           chordset.chords.each do |chord|
             chord.enact(event) if chord.enabled && chord.modifiers == cur_modifiers && chord.button == button
           end
@@ -113,9 +117,10 @@ module Crafty
           [DeadEnd.new(@downkeys)]
         end
 
-        def accept_keyup(key, cur_modifiers, chordset)
+        def accept_keyup(key, cur_modifiers, tool, chordset, view)
           if @downkeys.include? key
-            KeychordUp.new(@downkeys, @reachable_chords, @sequence_index).accept_keyup(key, cur_modifiers, chordset)
+            KeychordUp.new(@downkeys, @reachable_chords, @sequence_index)
+                      .accept_keyup(key, cur_modifiers, tool, chordset, view)
           else
             [false, DeadEnd.new(@downkeys), nil]
           end
@@ -147,13 +152,13 @@ module Crafty
           @reachable_chords
         end
 
-        def accept_keyup(key, cur_modifiers, _chordset)
+        def accept_keyup(key, cur_modifiers, tool, chordset, view)
           if @downkeys.include? key
             @downkeys.delete key
             if @downkeys.empty?
               # Enact any chords we currently matched
               any_enacted = false
-              event = KeyPressEnactEvent.new handled: true
+              event = KeyPressEnactEvent.new(tool, chordset, view)
               @reachable_chords.each do |chord|
                 # This chord was activated if we have the right modifiers and initial downkeys
                 if chord.enabled && chord.matches?(cur_modifiers, @initial_downkeys, @sequence_index)

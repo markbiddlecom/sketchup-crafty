@@ -61,7 +61,7 @@ module Crafty
             if @mode.return_on_l_click
               self.apply_mode (@mode.on_return self, view), view
             else
-              self.apply_mode @mode.chordset.on_click(Crafty::Chords::Chord::LBUTTON, @lbutton_down)
+              self.apply_mode @mode.chordset.on_click(Chords::Chord::LBUTTON, @lbutton_down, self, view)
             end
           end
         end
@@ -73,7 +73,7 @@ module Crafty
         unless @rbutton_down.nil?
           cur_pt = Geom::Point2d.new x, y
           if cur_pt.distance(@lbutton_down) <= Mode::CLICK_SLOP_DISTANCE
-            self.apply_mode @mode.chordset.on_click(Crafty::Chords::Chord::RBUTTON, @rbutton_down)
+            self.apply_mode @mode.chordset.on_click(Chords::Chord::RBUTTON, @rbutton_down, self, view)
           end
         end
         @rbutton_down = nil
@@ -108,7 +108,7 @@ module Crafty
       def onKeyUp(key, repeat, _flags, view)
         handled = false
         if repeat == 1
-          handled, new_mode = @mode.chordset.on_keyup(key)
+          handled, new_mode = @mode.chordset.on_keyup(key, self, view)
           self.apply_mode(new_mode, view) unless new_mode.nil?
         end
         handled

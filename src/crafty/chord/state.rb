@@ -65,7 +65,7 @@ module Crafty
             # downkeys doesn't contain any keys not expected by the chord
             if chord.keys.length > sequence_index
               sequence_keys = chord.keys[sequence_index].to_set
-              yield downkeys.all? { |key| sequence_keys.include? key }
+              next downkeys.all? { |key| sequence_keys.include? key }
             end
           end
           false
@@ -216,7 +216,7 @@ module Crafty
           [false, self]
         end
 
-        def accept_keyup(key, cur_modifiers, chordset)
+        def accept_keyup(key, cur_modifiers, _tool, chordset, _view)
           @downkeys.delete key
           [false, self.accept_modifier_change(cur_modifiers, chordset), nil]
         end

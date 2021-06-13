@@ -74,11 +74,12 @@ module Crafty
         target = view.camera.target
         up = view.camera.up
         perspective = view.camera.perspective?
-        fov = view.camera.fov
+        fov = Util::FuzzyNumeric.new view.camera.fov
         camera = [eye, target, up, perspective, fov]
 
         if @last_camera.nil? || @last_camera != camera
           self.calculate_screen_bounds(view)
+          @last_camera = camera
         end
 
         @screen_bounds.contains? x, y
@@ -117,7 +118,7 @@ module Crafty
       def contains?(x, y)
         if x >= @bounds.upper_left.x && x <= @bounds.lower_right.x
           if y >= @bounds.upper_left.y && y <= @bounds.lower_right.y
-            @screen_polygons.any? { |polygon| self.polygon_contains?(x, y, polygon) }
+            return @screen_polygons.any? { |polygon| self.polygon_contains?(x, y, polygon) }
           end
         end
         false

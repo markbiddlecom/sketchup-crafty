@@ -6,13 +6,16 @@ module Crafty
     COLOR_ABUTTING = 'green'
 
     COLOR_PRIMARY = 'orange'
-    COLOR_BACK = 'yellow'
+    COLOR_BACK = 'blue'
     COLOR_SECONDARY = 'gray'
+    COLOR_HOVER = 'yellow'
 
     FACE_COLORS = { primary_face: COLOR_PRIMARY, back_face: COLOR_BACK }.freeze
-    HIGHLIGHT_COLORS = { penetrating: COLOR_PRIMARY, abutting: COLOR_ABUTTING }.freeze
+    HIGHLIGHT_COLORS = { penetrating: COLOR_PENETRATING, abutting: COLOR_ABUTTING }.freeze
 
     class PrimaryMode < ToolStateMachine::Mode
+      attr_reader :chordset
+
       # @param panel_solids [Array<Sketchup::Group>] the set of groups that can be cross-intersected
       def initialize(panel_solids, initial_selected_index)
         @initial_selected_index = initial_selected_index
@@ -55,8 +58,8 @@ module Crafty
       end
 
       def deactivate_mode(_tool, _new_mode, view)
-        view.release_texture @penetrating_texture[:id]
-        view.release_texture @abutting_texture[:id]
+        view.release_texture @textures[:penetrating][:id]
+        view.release_texture @textures[:abutting][:id]
       end
 
       # @param chord [Chords::Chord]
@@ -76,24 +79,25 @@ module Crafty
       end
 
       def on_change_highlight_mode(_chord, event)
-        @face_mode.advance!
+        @highlight_mode.advance!
         event.view.invalidate
       end
 
       def on_mouse_move(_tool, _flags, x, y, view)
-        # Figure out what the hovered element is. Short-circuit if the current highlight still contains the mouse point
-        if @highlight_hover.nil? || !@highlight_hover.contains?(x, y, view)
+        # Figure out what the hovered element is. Short-circuit if the current highlight still contains the mouse point\
+        was_highlight_nil = @highlight_hover.nil?
+        if was_highlight_nil || !@highlight_hover.contains?(x, y, view)
           @highlight_hover = self.visible_highlights.filter { |h| h.contains?(x, y, view) }.last
           # Fall back to looking for a new primary?
           if @highlight_hover.nil?
             picked = view.pick_helper(x, y).best_picked
-            if picked != @secondary_hover && @secondary_solids.include?(picked)
-              # Changed from a different secondary hover
+            picked = nil unless @secondary_solids.include?(picked)
+            if picked != @secondary_hover
+              # Changed to a new secondary hover
               @secondary_hover = picked
               view.invalidate
-            elsif !@secondary_hover.nil?
-              # Went from a secondary hover to nil
-              @secondary_hover = nil
+            elsif !was_highlight_nil
+              # Changed from a highlight hover to nothing highlighted
               view.invalidate
             end
           else
@@ -163,7 +167,13 @@ module Crafty
       # @param view [Sketchup::View]
       def draw_highlights(view)
         self.visible_highlights.each { |highlight|
-          self.draw_highlight(view, highlight, HIGHLIGHT_COLORS[highlight.type], @textures[highlight.type][:id])
+          color = HIGHLIGHT_COLORS[highlight.type]
+          texture = @textures[highlight.type]
+          selected = highlight.selected
+          color = COLOR_HOVER if highlight == @highlight_hover
+          selected = !selected if highlight == @highlight_hover
+          texture = nil unless selected
+          self.draw_highlight(view, highlight, color, texture)
         }
       end
 
@@ -172,17 +182,10 @@ module Crafty
       # @param color [String]
       # @param texture [String]
       def draw_highlight(view, highlight, color, texture)
-        if highlight.selected
+        unless texture.nil?
           Util.draw(view, GL_TRIANGLES, *highlight.polygons, color: color, overlaid: true, texture: texture)
         end
-        Util.draw(
-            view,
-            GL_LINE_LOOP,
-            *highlight.loops.first,
-            color: color,
-            width: highlight.selected ? 3 : 1,
-            overlaid: true
-          )
+        Util.draw(view, GL_LINE_LOOP, *highlight.loops.first, color: color, width: 3, overlaid: true)
       end
 
       # @param new_primary [Integer] the index of the new primary solid

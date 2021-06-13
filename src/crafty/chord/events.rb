@@ -39,6 +39,10 @@ module Crafty
       # @return [Boolean] `true` (the default) if the input was handled and SketchUp should ignore it; `false` to
       #   indicate that SketchUp should also process the keypress.
       attr_accessor :handled
+
+      def to_s
+        "KeyPressEnactEvent<@handled=#{@handled}>"
+      end
     end # class KeyPressEnactEvent
 
     class ClickEnactEvent < EnactEvent
@@ -53,6 +57,10 @@ module Crafty
 
       # @return [Geom::Point2d] the point where the mouse was clicked
       attr_reader :point
+
+      def to_s
+        "ClickEnactEvent<@point=#{@point}>"
+      end
     end # class ClickEnactEvent
 
     class DragEnactEvent < EnactEvent
@@ -73,6 +81,10 @@ module Crafty
       # @return [Symbol] `:left_to_right` if the user started drawing the rectangle on the
       #   left side and `:right_to_left` otherwise.
       attr_reader :direction
+
+      def to_s
+        puts "DragEnactEvent<@bounds=#{@bounds}, @direction=#{@direction}>"
+      end
     end # DragEnactEvent
   end # module Chords
 end # module Crafty
